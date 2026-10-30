@@ -16,6 +16,7 @@ SITUACAO = {"Não compareceu": "Faltou", "Atendida, não fechou": "Veio e não f
 COR_SIT = {"Faltou": "#8a2f3b", "Veio e não fechou": "#9a5a2b", "Veio, conferir se fechou": "#2d3f5f"}
 VENDEDORAS = ["Todas", "Natalya", "Raquel", "Jéssica Martins", "Sem vendedora"]
 POR_PAGINA = 25
+DOMINIO = "followup.dressmeup.com.br"  # e-mail interno: usuario@DOMINIO (não recebe mensagens)
 
 st.markdown("""
 <style>
@@ -38,17 +39,18 @@ def cliente_supabase():
 
 def tela_login():
     st.title("Follow up · Dress Me Up Goiânia")
-    st.caption("Entre com o e-mail e a senha que a Kami cadastrou para você.")
+    st.caption("Entre com o usuário e a senha que a Kami cadastrou para você.")
     with st.form("login"):
-        email = st.text_input("E-mail")
+        usuario = st.text_input("Usuário").strip().lower()
         senha = st.text_input("Senha", type="password")
         if st.form_submit_button("Entrar", type="primary"):
+            email = usuario if "@" in usuario else f"{usuario}@{DOMINIO}"
             try:
-                res = cliente_supabase().auth.sign_in_with_password({"email": email.strip(), "password": senha})
-                st.session_state.user_email = res.user.email
+                res = cliente_supabase().auth.sign_in_with_password({"email": email, "password": senha})
+                st.session_state.user_email = res.user.email.split("@")[0]
                 st.rerun()
             except Exception:
-                st.error("E-mail ou senha incorretos. Confira e tente de novo.")
+                st.error("Usuário ou senha incorretos. Confira e tente de novo.")
 
 
 def sair():
