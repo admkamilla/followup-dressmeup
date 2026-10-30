@@ -26,6 +26,10 @@ st.markdown("""
 .pill{display:inline-block;font-size:.75rem;font-weight:600;border-radius:999px;padding:2px 10px;color:#fff;margin-right:6px}
 .auto{color:#6e2a4f;font-size:.85rem;margin:4px 0}
 .stamp{color:#8a8590;font-size:.75rem}
+.dia{display:flex;justify-content:space-between;align-items:baseline;gap:8px;background:#2b2a2e;color:#fff;
+ border-radius:10px;padding:10px 14px;margin:22px 0 8px}
+.dia b{font-size:1.05rem}.dia span{font-size:.8rem;opacity:.8}
+.dia.hoje{background:#6e2a4f}.dia.sem{background:#6b6570}
 </style>
 """, unsafe_allow_html=True)
 
@@ -58,7 +62,7 @@ def sair():
         cliente_supabase().auth.sign_out()
     except Exception:
         pass
-    for k in ("sb", "user_email"):
+    for k in ("sb", "user_email", "nome_vendedora", "gestora"):
         st.session_state.pop(k, None)
     st.rerun()
 
@@ -102,6 +106,20 @@ def salvar(cliente_id, status, proximo, motivo, nota):
     }).execute()
 
 
+SEMANA = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
+
+
+def titulo_dia(evento):
+    if not evento:
+        return "Sem data do evento", "sem"
+    d = date.fromisoformat(evento)
+    dias = (d - date.today()).days
+    rotulo = f"{SEMANA[d.weekday()].capitalize()}, {d:%d/%m}"
+    if dias == 0: return f"Hoje · {rotulo}", "hoje"
+    if dias == 1: return f"Amanhã · {rotulo}", ""
+    return f"{rotulo} · em {dias} dias", ""
+
+
 def ddmm(s):
     return f"{s[8:10]}/{s[5:7]}/{s[2:4]}" if s else "—"
 
@@ -119,7 +137,19 @@ def tela_lista():
     topo.title("Follow up · Dress Me Up Goiânia")
     if botao.button("Sair"):
         sair()
-    st.caption("Clientes que faltaram ou vieram e ainda não fecharam, com evento por vir. "
+    nome = st.session_state.get("nome_vendedora")
+    if nome is None:
+        try:
+            r = cliente_supabase().table("equipe").select("nome,papel").execute().data
+            nome = r[0]["nome"].split()[0] if r else ""
+            st.session_state.gestora = bool(r) and r[0].get("papel") == "gestora"
+        except Exception:
+            nome = ""
+        st.session_state.nome_vendedora = nome
+    gestora = st.session_state.get("gestora", False)
+    st.caption((f"Olá, {nome}! Você vê as clientes de toda a equipe " if gestora else
+                f"Olá, {nome}! Estas são as suas clientes (pela cor da agenda) " if nome else "Clientes ")
+               + "que faltaram ou vieram e ainda não fecharam, com evento por vir. "
                "A lista se atualiza sozinha com a agenda. Comece pelos eventos mais próximos.")
 
     clientes, fus = carregar()
@@ -132,7 +162,7 @@ def tela_lista():
         st_ef, auto = status_efetivo(c, f)
         c = dict(c, _f=f or {}, _status=st_ef, _auto=auto,
                  _sit=SITUACAO.get(c.get("etapa"), ""),
-                 _vend="" if c.get("etapa") == "Não compareceu" else (c.get("vend_atend") or ""))
+                 _vend=(c.get("vend_atend") or ""))
         lista.append(c)
 
     if not lista:
@@ -147,16 +177,14 @@ def tela_lista():
 
     f1, f2 = st.columns(2)
     filtro_status = f1.selectbox("Follow-up", ["Todos"] + STATUS, index=1)
-    filtro_vend = f2.selectbox("Vendedora", VENDEDORAS)
-    f3, f4 = st.columns(2)
-    filtro_sit = f3.selectbox("Situação", ["Todas"] + list(SITUACAO.values()))
-    busca = f4.text_input("Buscar nome ou telefone").strip().lower()
+    filtro_sit = f2.selectbox("Situação", ["Todas"] + list(SITUACAO.values()))
+    filtro_vend = st.selectbox("Vendedora", ["Todas", "Natalya", "Raquel", "Jéssica Martins"]) if gestora else "Todas"
+    busca = st.text_input("Buscar nome ou telefone").strip().lower()
 
     def passa(c):
         if filtro_status != "Todos" and c["_status"] != filtro_status: return False
-        if filtro_vend == "Sem vendedora" and c["_vend"]: return False
-        if filtro_vend not in ("Todas", "Sem vendedora") and c["_vend"] != filtro_vend: return False
         if filtro_sit != "Todas" and c["_sit"] != filtro_sit: return False
+        if filtro_vend != "Todas" and c.get("vend_atend") != filtro_vend: return False
         if busca:
             dig = "".join(ch for ch in busca if ch.isdigit())
             if busca not in (c.get("nome") or "").lower() and not (dig and dig in (c.get("tel") or "")): return False
@@ -165,7 +193,17 @@ def tela_lista():
     filtrada = sorted(filter(passa, lista), key=lambda c: c.get("evento") or "9999")
     st.caption(f"{len(filtrada)} clientes nesta lista")
     pag = st.session_state.get("pag", 1)
+    por_dia = {}
+    for c in filtrada:
+        por_dia[c.get("evento")] = por_dia.get(c.get("evento"), 0) + 1
+    atual = object()
     for c in filtrada[: pag * POR_PAGINA]:
+        if c.get("evento") != atual:
+            atual = c.get("evento")
+            txt, cls = titulo_dia(atual)
+            n = por_dia[atual]
+            st.markdown(f'<div class="dia {cls}"><b>{txt}</b><span>{n} cliente{"s" if n > 1 else ""}</span></div>',
+                        unsafe_allow_html=True)
         cartao(c)
     if len(filtrada) > pag * POR_PAGINA and st.button("Mostrar mais"):
         st.session_state.pag = pag + 1
