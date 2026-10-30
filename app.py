@@ -4,6 +4,9 @@ App da equipe de vendas: lista de clientes para follow-up, atualizada com a agen
 Não mostra valores, pedidos ou faturamento.
 """
 from datetime import date, datetime, timezone
+from html import escape
+import re
+import unicodedata
 
 import streamlit as st
 from supabase import create_client
@@ -16,6 +19,42 @@ SITUACAO = {"Não compareceu": "Faltou", "Atendida, não fechou": "Veio e não f
 COR_SIT = {"Faltou": "#8a2f3b", "Veio e não fechou": "#9a5a2b", "Veio, conferir se fechou": "#2d3f5f"}
 VENDEDORAS = ["Todas", "Natalya", "Raquel", "Jéssica Martins", "Sem vendedora"]
 POR_PAGINA = 25
+
+
+def _ate(dias):
+    return lambda ev: bool(ev) and 0 <= (date.fromisoformat(ev) - date.today()).days <= dias
+
+
+MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto",
+         "setembro", "outubro", "novembro", "dezembro"]
+
+
+def tipo_evento(c):
+    """Tipo de evento a partir da ocasião que a cliente informou."""
+    o = unicodedata.normalize("NFKD", (c.get("ocasiao") or "")).encode("ascii", "ignore").decode().lower()
+    if not o.strip(): return "Não informado"
+    if re.search(r"\bmae\b|\bpai\b|\bavo\b|madrasta|sogra", o): return "Mãe/família"
+    if "madrinha" in o: return "Madrinha"
+    if "meio med" in o or "1/2 med" in o: return "Meio médico"
+    if re.search(r"forma[nt]|baile|gala", o): return "Formatura"
+    if re.search(r"noiv|casam", o): return "Casamento/convidada"
+    if re.search(r"15|debut", o): return "15 anos"
+    return "Outro"
+
+
+def periodos(lista):
+    """Opções do filtro de data: atalhos + cada mês que tem evento na lista (ex.: julho de 2027)."""
+    op = {
+        "Qualquer data": lambda ev: True,
+        "Nos próximos 7 dias": _ate(7),
+        "Nos próximos 15 dias": _ate(15),
+        "Nos próximos 30 dias": _ate(30),
+        "Nos próximos 60 dias": _ate(60),
+    }
+    for ym in sorted({c["evento"][:7] for c in lista if c.get("evento")}):
+        op[f"{MESES[int(ym[5:7]) - 1]} de {ym[:4]}"] = lambda ev, ym=ym: bool(ev) and ev[:7] == ym
+    op["Sem data informada"] = lambda ev: not ev
+    return op
 DOMINIO = "followup.dressmeup.com.br"  # e-mail interno: usuario@DOMINIO (não recebe mensagens)
 
 st.markdown("""
@@ -30,6 +69,30 @@ st.markdown("""
  border-radius:10px;padding:10px 14px;margin:22px 0 8px}
 .dia b{font-size:1.05rem}.dia span{font-size:.8rem;opacity:.8}
 .dia.hoje{background:#6e2a4f}.dia.sem{background:#6b6570}
+/* barra padrão do Streamlit escondida: ela cobria o botão Sair */
+header[data-testid="stHeader"]{display:none}
+.block-container{padding-top:2rem}
+/* contadores em cartões com sombra (3 por linha, também no celular) */
+.conts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0 16px}
+.cont{background:#fff;border-radius:12px;padding:10px 14px;
+ box-shadow:0 1px 2px rgba(43,42,46,.06),0 4px 14px rgba(43,42,46,.08)}
+.cont span{display:block;font-size:.78rem;color:#6b6570;line-height:1.2}
+.cont b{display:block;font-size:1.9rem;font-weight:600;color:#2b2a2e;line-height:1.2;margin-top:4px;
+ text-shadow:0 2px 4px rgba(110,42,79,.18)}
+@media (max-width:640px){.cont{padding:8px 10px}.cont b{font-size:1.5rem}.cont span{font-size:.72rem}}
+/* cartão de cada cliente mais compacto */
+[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"]{gap:.35rem}
+[data-testid="stForm"] [data-testid="stWidgetLabel"] p{font-size:.78rem;color:#6b6570}
+[data-testid="stForm"] [data-testid="stVerticalBlock"]{gap:.4rem}
+[data-testid="stForm"] textarea{height:52px!important;min-height:52px!important;padding-top:.5rem}
+.cli-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.cli-topo .pills{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px}
+.cli-topo .pill{margin:0;white-space:nowrap}
+.cli-info{display:grid;grid-template-columns:max-content 1fr;column-gap:10px;row-gap:3px;margin:8px 0 4px;
+ font-size:.9rem;line-height:1.35}
+.cli-info .r{color:#6b6570}.cli-info .v{color:#2b2a2e}
+.cli-info a{color:#6e2a4f;font-weight:600}
+.cli-meta{margin:4px 0 10px}
 </style>
 """, unsafe_allow_html=True)
 
@@ -126,6 +189,13 @@ def ddmm(s):
     return f"{s[8:10]}/{s[5:7]}/{s[2:4]}" if s else "—"
 
 
+def fone_link(t):
+    if not t:
+        return ""
+    vis = f"({t[:2]}) {t[2:-4]}-{t[-4:]}" if len(t) >= 10 else t
+    return f'<a href="https://wa.me/55{t}" target="_blank">{vis}</a>'
+
+
 def fone(t):
     if not t:
         return ""
@@ -135,7 +205,7 @@ def fone(t):
 
 # ---------- tela principal ----------
 def tela_lista():
-    topo, botao = st.columns([5, 1])
+    topo, botao = st.columns([5, 1], vertical_alignment="center")
     topo.title("Follow up · Dress Me Up Goiânia")
     if botao.button("Sair"):
         sair()
@@ -166,6 +236,7 @@ def tela_lista():
         c = dict(c, _f=f or {}, _status=st_ef, _auto=auto,
                  _sit=SITUACAO.get(c.get("etapa"), ""),
                  _vend=(c.get("vend_atend") or ""))
+        c["_tipo"] = tipo_evento(c)
         lista.append(c)
 
     if not lista:
@@ -174,13 +245,17 @@ def tela_lista():
 
     # contadores
     cont = {s: sum(1 for c in lista if c["_status"] == s) for s in STATUS}
-    cols = st.columns(3)
-    for i, s in enumerate(STATUS):
-        cols[i % 3].metric(s, cont[s])
+    st.markdown('<div class="conts">' + "".join(f'<div class="cont"><span>{s}</span><b>{cont[s]}</b></div>' for s in STATUS)
+                + "</div>", unsafe_allow_html=True)
 
     f1, f2 = st.columns(2)
     filtro_status = f1.selectbox("Follow-up", ["Todos"] + STATUS, index=1)
     filtro_sit = f2.selectbox("Situação", ["Todas"] + list(SITUACAO.values()))
+    f3, f4 = st.columns(2)
+    tipos = sorted({c["_tipo"] for c in lista}, key=lambda g: (g in ("Outro", "Não informado"), g))
+    filtro_tipo = f3.selectbox("Tipo de evento", ["Todos"] + tipos)
+    per = periodos(lista)
+    filtro_data = f4.selectbox("Data do evento", list(per))
     filtro_vend = st.selectbox("Vendedora", ["Todas", "Natalya", "Raquel", "Jéssica Martins"]) if gestora else "Todas"
     busca = st.text_input("Buscar nome ou telefone").strip().lower()
 
@@ -188,6 +263,8 @@ def tela_lista():
         if filtro_status != "Todos" and c["_status"] != filtro_status: return False
         if filtro_sit != "Todas" and c["_sit"] != filtro_sit: return False
         if filtro_vend != "Todas" and c.get("vend_atend") != filtro_vend: return False
+        if filtro_tipo != "Todos" and c["_tipo"] != filtro_tipo: return False
+        if not per[filtro_data](c.get("evento")): return False
         if busca:
             dig = "".join(ch for ch in busca if ch.isdigit())
             if busca not in (c.get("nome") or "").lower() and not (dig and dig in (c.get("tel") or "")): return False
@@ -221,32 +298,37 @@ def cartao(c):
         if c.get("evento"):
             dias = (date.fromisoformat(c["evento"]) - date.today()).days
         prazo = f" (em {dias} dias)" if dias and dias > 0 else " (hoje)" if dias == 0 else ""
-        cor = COR_SIT.get(c["_sit"], "#555")
-        st.markdown(f'<p class="cli-nome">{c.get("nome") or ""}</p>'
-                    f'<span class="pill" style="background:{cor}">{c["_sit"]}</span>'
-                    + ('<span class="pill" style="background:#6e2a4f">evento próximo</span>' if dias is not None and dias <= 21 else ""),
-                    unsafe_allow_html=True)
-        st.markdown(f'<p class="cli-meta">{c.get("ocasiao") or c.get("grupo") or ""} · evento {ddmm(c.get("evento"))}{prazo} · '
-                    f'atendimento {ddmm(c.get("ultimo"))}{" · " + c["_vend"] if c["_vend"] else ""}'
-                    f'{" · ✅ tinha confirmado" if c.get("confirmou") else ""}'
-                    f'{" · <b>próxima prova " + ddmm(c["proxima"]) + "</b>" if c.get("proxima") else ""}</p>',
-                    unsafe_allow_html=True)
-        if c.get("tel"):
-            st.markdown(fone(c["tel"]))
+        cor_sit = COR_SIT.get(c["_sit"], "#555")
+        pills = f'<span class="pill" style="background:{cor_sit}">{c["_sit"]}</span>'
+        if dias is not None and dias <= 21:
+            pills += '<span class="pill" style="background:#6e2a4f">evento próximo</span>'
+        txt = lambda v: escape((v or "").strip()) or "—"
+        evento = txt(c.get("ocasiao") or c.get("grupo")) + (f' · {ddmm(c["evento"])}{prazo}' if c.get("evento") else "")
+        whats = fone_link(c.get("tel")) or "—"
+        extra = (f'atendimento {ddmm(c.get("ultimo"))}{" · " + escape(c["_vend"]) if c["_vend"] else ""}'
+                 f'{" · ✅ tinha confirmado" if c.get("confirmou") else ""}'
+                 f'{" · <b>próxima prova " + ddmm(c["proxima"]) + "</b>" if c.get("proxima") else ""}')
+        st.markdown(f'<div class="cli-topo"><p class="cli-nome">{txt(c.get("nome"))}</p><div class="pills">{pills}</div></div>'
+                    f'<div class="cli-info"><span class="r">Tamanho:</span><span class="v">{txt(c.get("tamanho"))}</span>'
+                    f'<span class="r">Cor:</span><span class="v">{txt(c.get("cor"))}</span>'
+                    f'<span class="r">Evento:</span><span class="v">{evento}</span>'
+                    f'<span class="r">WhatsApp:</span><span class="v">{whats}</span></div>'
+                    f'<p class="cli-meta">{extra}</p>', unsafe_allow_html=True)
         if c.get("auto_texto"):
             st.markdown(f'<p class="auto">📅 {c["auto_texto"]}</p>', unsafe_allow_html=True)
 
-        with st.form(f"f_{c['id']}"):
-            a, b = st.columns(2)
+        with st.form(f"f_{c['id']}", border=False):
+            a, b, m = st.columns(3)
             status = a.selectbox("Follow-up", STATUS, index=STATUS.index(c["_status"]) if c["_status"] in STATUS else 0, key=f"s_{c['id']}")
             prox_val = date.fromisoformat(f["proximo"]) if f.get("proximo") else None
             proximo = b.date_input("Próximo contato", value=prox_val, format="DD/MM/YYYY", key=f"p_{c['id']}")
-            motivo = st.selectbox("Motivo (se não vai fechar)", MOTIVOS,
-                                  index=MOTIVOS.index(f.get("motivo") or "") if (f.get("motivo") or "") in MOTIVOS else 0,
-                                  key=f"m_{c['id']}")
-            nota = st.text_area("Anotação", value=f.get("nota") or "", height=68,
-                                placeholder="Ex.: pediu fotos de vestidos azuis, retornar sexta", key=f"n_{c['id']}")
-            if st.form_submit_button("Salvar"):
+            motivo = m.selectbox("Motivo (se não fechar)", MOTIVOS,
+                                 index=MOTIVOS.index(f.get("motivo") or "") if (f.get("motivo") or "") in MOTIVOS else 0,
+                                 key=f"m_{c['id']}")
+            n_col, s_col = st.columns([5, 1], vertical_alignment="bottom")
+            nota = n_col.text_area("Anotação", value=f.get("nota") or "", height=68,
+                                   placeholder="Ex.: pediu fotos de vestidos azuis, retornar sexta", key=f"n_{c['id']}")
+            if s_col.form_submit_button("Salvar", use_container_width=True):
                 if status == "Não vai fechar" and not motivo:
                     st.error("Escolha o motivo antes de salvar.")
                 else:
