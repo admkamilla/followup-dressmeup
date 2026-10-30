@@ -109,15 +109,17 @@ def salvar(cliente_id, status, proximo, motivo, nota):
 SEMANA = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 
-def titulo_dia(evento):
-    if not evento:
-        return "Sem data do evento", "sem"
-    d = date.fromisoformat(evento)
-    dias = (d - date.today()).days
-    rotulo = f"{SEMANA[d.weekday()].capitalize()}, {d:%d/%m}"
-    if dias == 0: return f"Hoje · {rotulo}", "hoje"
-    if dias == 1: return f"Amanhã · {rotulo}", ""
-    return f"{rotulo} · em {dias} dias", ""
+def titulo_dia(agendado):
+    """Título do grupo: dia em que a cliente estava agendada na agenda da loja."""
+    if not agendado:
+        return "Sem data na agenda", "sem"
+    d = date.fromisoformat(agendado)
+    dias = (date.today() - d).days
+    rotulo = f"{SEMANA[d.weekday()]}, {d:%d/%m}"
+    if dias == 0: return f"Agendadas hoje · {rotulo}", "hoje"
+    if dias == 1: return f"Agendadas ontem · {rotulo}", ""
+    if dias < 0: return f"Agendadas para {rotulo}", ""
+    return f"Agendadas {rotulo} · há {dias} dias", ""
 
 
 def ddmm(s):
@@ -147,10 +149,11 @@ def tela_lista():
             nome = ""
         st.session_state.nome_vendedora = nome
     gestora = st.session_state.get("gestora", False)
-    st.caption((f"Olá, {nome}! Você vê as clientes de toda a equipe " if gestora else
+    st.caption((f"Olá, {nome}! Você vê as clientes de toda a equipe, " if gestora else
                 f"Olá, {nome}! Estas são as suas clientes (pela cor da agenda) " if nome else "Clientes ")
                + "que faltaram ou vieram e ainda não fecharam, com evento por vir. "
-               "A lista se atualiza sozinha com a agenda. Comece pelos eventos mais próximos.")
+               "Separadas pelo dia em que estavam na agenda, das mais recentes para as mais antigas. "
+               "A lista se atualiza sozinha com a agenda.")
 
     clientes, fus = carregar()
     hoje = date.today().isoformat()
@@ -190,16 +193,17 @@ def tela_lista():
             if busca not in (c.get("nome") or "").lower() and not (dig and dig in (c.get("tel") or "")): return False
         return True
 
-    filtrada = sorted(filter(passa, lista), key=lambda c: c.get("evento") or "9999")
+    # mais recente primeiro: quem esteve na agenda por último é quem pede retorno antes
+    filtrada = sorted(filter(passa, lista), key=lambda c: (c.get("ultimo") or "", c.get("nome") or ""), reverse=True)
     st.caption(f"{len(filtrada)} clientes nesta lista")
     pag = st.session_state.get("pag", 1)
     por_dia = {}
     for c in filtrada:
-        por_dia[c.get("evento")] = por_dia.get(c.get("evento"), 0) + 1
+        por_dia[c.get("ultimo")] = por_dia.get(c.get("ultimo"), 0) + 1
     atual = object()
     for c in filtrada[: pag * POR_PAGINA]:
-        if c.get("evento") != atual:
-            atual = c.get("evento")
+        if c.get("ultimo") != atual:
+            atual = c.get("ultimo")
             txt, cls = titulo_dia(atual)
             n = por_dia[atual]
             st.markdown(f'<div class="dia {cls}"><b>{txt}</b><span>{n} cliente{"s" if n > 1 else ""}</span></div>',
