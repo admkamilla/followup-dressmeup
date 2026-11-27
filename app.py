@@ -35,6 +35,7 @@ h1{font-size:1.6rem!important;padding-bottom:0!important}
 .pill{display:inline-block;font-size:.68rem;font-weight:600;border-radius:999px;padding:1px 8px;color:#fff}
 .auto{color:#6e2a4f;font-size:.78rem;margin:0}
 .stamp{color:#8a8590;font-size:.7rem}
+.enviada{color:#2f5f9e;font-size:.78rem;font-weight:600}
 /* cartão enxuto */
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"]{gap:.5rem}
 [data-testid="stForm"]{padding:0}
@@ -349,7 +350,7 @@ def tabela_followup(clientes, gestora):
         f = c["_f"]
         tel = c.get("tel") or ""
         linha = {"_id": c["id"], "Agenda": ddmm(c.get("ultimo"))[:5], "Cliente": c.get("nome") or "",
-                 "Ocasião": _ocasiao(c), "Evento": ddmm(c.get("evento"))[:5],
+                 "Ocasião": _ocasiao(c), "Evento": ddmm(c.get("evento")),
                  "Situação": {"Veio e não fechou": "Não fechou", "Veio, conferir se fechou": "Conferir"}.get(c["_sit"], c["_sit"])}
         if gestora:
             linha["Vendedora"] = (c.get("vend_atend") or "").split(" ")[0]
@@ -505,8 +506,8 @@ SALTO = {"Primeiro": "Traga o salto que você vai usar na festa, tá? Ele muda o
          "Retorno": "Não esquece o salto que você vai usar na festa, tá? É com ele que a gente acerta o comprimento.",
          "Troca": "Traga o salto que você vai usar na festa, tá? Assim a gente já confere o comprimento do novo vestido."}
 TIPO_ROTULO = {"Primeiro": "1º atendimento", "Retorno": "Prova/retorno", "Troca": "Troca"}
-CONF = ["A confirmar", "Confirmou", "Vai remarcar", "Não respondeu"]
-COR_CONF = {"A confirmar": "#8a8590", "Confirmou": "#1a7f4b", "Vai remarcar": "#b5761b", "Não respondeu": "#8a2f3b"}
+CONF = ["A confirmar", "Mensagem enviada", "Confirmou", "Vai remarcar", "Não respondeu"]
+COR_CONF = {"A confirmar": "#8a8590", "Mensagem enviada": "#2f5f9e", "Confirmou": "#1a7f4b", "Vai remarcar": "#b5761b", "Não respondeu": "#8a2f3b"}
 NAO_E_NOME = {"filha", "mae", "mãe", "irma", "irmã", "amiga", "prima", "sobrinha", "cliente"}
 
 
@@ -535,6 +536,16 @@ def mensagem(a, vendedora):
 
 def link_whats(tel, texto):
     return f"https://wa.me/55{tel}?text={quote(texto)}"
+
+
+def carimbo(c):
+    """'natalya', '2026-11-27T21:40:00+00:00' -> 'Natalya, 27/11 às 18h40'"""
+    quem = (c.get("por") or "alguém da equipe").split("@")[0].capitalize()
+    try:
+        em = datetime.fromisoformat(c["em"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/Sao_Paulo"))
+        return f"{quem}, {em:%d/%m} às {em.hour}h{em:%M}"
+    except Exception:
+        return quem
 
 
 def salvar_conf(agenda_id):
@@ -595,14 +606,16 @@ def tela_confirmar(nome, gestora):
         tabela_resumo(linhas, CONF + ["Total"], alerta=("A confirmar", "Não respondeu"))
 
     n_ok = sum(1 for a in lista if status(a) == "Confirmou")
+    n_env = sum(1 for a in lista if status(a) == "Mensagem enviada")
     falta = sum(1 for a in lista if status(a) == "A confirmar")
     st.markdown(f'<div class="dia hoje"><b>{rot(dia)}</b><span>{len(lista)} agendamento{"s" if len(lista) != 1 else ""} · '
-                f'{n_ok} confirmada{"s" if n_ok != 1 else ""} · {falta} a confirmar</span></div>', unsafe_allow_html=True)
+                f'{falta} sem mensagem · {n_env} aguardando resposta · '
+                f'{n_ok} confirmada{"s" if n_ok != 1 else ""}</span></div>', unsafe_allow_html=True)
     if not lista:
         st.info("Nenhum agendamento seu neste dia.")
         return
-    st.caption("Toque em **Enviar no WhatsApp**: a mensagem abre pronta, é só enviar. "
-               "Quando a cliente responder, marque aqui embaixo.")
+    st.caption("Toque em **Enviar no WhatsApp** e envie → marque **Mensagem enviada** (as outras veem e ninguém "
+               "manda duas vezes) → quando a cliente responder, marque Confirmou, Vai remarcar ou Não respondeu.")
 
     for a in lista:
         stt = status(a)
@@ -617,15 +630,20 @@ def tela_confirmar(nome, gestora):
                         f'<span class="pill" style="background:{COR_CONF[stt]}">{stt}</span></div>'
                         f'<div class="cli-meta" style="padding-bottom:10px">{" · ".join(p for p in partes if p)}</div>', unsafe_allow_html=True)
             b, r = st.columns([2, 5], vertical_alignment="center")
-            if a.get("tel"):
+            if a.get("tel") and stt == "A confirmar":
                 b.link_button("📲 Enviar no WhatsApp", link_whats(a["tel"], mensagem(a, nome)), use_container_width=True)
+            elif a.get("tel"):
+                b.link_button("Já enviada · abrir conversa" if stt in ("Mensagem enviada", "Não respondeu") else "Abrir conversa", f"https://wa.me/55{a['tel']}", use_container_width=True,
+                              help="A mensagem já foi enviada. Isto só abre a conversa, sem texto pronto.")
             else:
                 b.markdown('<span class="stamp">Sem telefone na agenda</span>', unsafe_allow_html=True)
             r.radio("Resposta", CONF, index=CONF.index(stt), horizontal=True, label_visibility="collapsed",
                     key=f"c_{a['id']}", on_change=salvar_conf, args=(a["id"],))
-            if c:
-                st.markdown(f'<span class="stamp">Marcado por {c.get("por") or "alguém da equipe"} em '
-                            f'{ddmm((c.get("em") or "")[:10])}</span>', unsafe_allow_html=True)
+            if c and c.get("status") == "Mensagem enviada":
+                st.markdown(f'<span class="enviada">✉️ Mensagem enviada por {carimbo(c)}. Não envie de novo.</span>',
+                            unsafe_allow_html=True)
+            elif c:
+                st.markdown(f'<span class="stamp">Marcado por {carimbo(c)}</span>', unsafe_allow_html=True)
             elif a.get("confirmou_agenda"):
                 st.markdown('<span class="stamp">✅ já estava confirmada na agenda</span>', unsafe_allow_html=True)
 
