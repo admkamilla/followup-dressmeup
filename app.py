@@ -11,9 +11,9 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 from supabase import create_client
 
-st.set_page_config(page_title="FOLLOW UP - DRESS ME UP GOIANIA", page_icon="📋", layout="centered")
+st.set_page_config(page_title="FOLLOW UP - DRESS ME UP GOIANIA", page_icon="📋", layout="wide")
 
-STATUS = ["Por fazer", "Tentei, sem resposta", "Em conversa", "Reagendou", "Fechou", "Não vai fechar"]
+STATUS = ["Por fazer", "Tentei, sem resposta", "Em conversa", "Reagendou", "Dados para contrato", "Fechou", "Não vai fechar"]
 MOTIVOS = ["", "Preço", "Alugou em outro lugar", "Não encontrou o vestido", "Desistiu do evento", "Comprou vestido", "Outro"]
 SITUACAO = {"Não compareceu": "Faltou", "Atendida, não fechou": "Veio e não fechou", "Em aberto": "Veio, conferir se fechou"}
 COR_SIT = {"Faltou": "#8a2f3b", "Veio e não fechou": "#9a5a2b", "Veio, conferir se fechou": "#2d3f5f"}
@@ -25,7 +25,9 @@ DOMINIO = "followup.dressmeup.com.br"  # e-mail interno: usuario@DOMINIO (não r
 
 st.markdown("""
 <style>
-.block-container{max-width:860px;padding-top:1.5rem}
+.block-container{max-width:1400px;padding-top:3.6rem!important}
+h1{font-size:1.6rem!important;padding-bottom:0!important}
+.quem{font-size:1.15rem;color:#6e2a4f;margin:.35rem 0 .6rem;letter-spacing:.02em}
 .cab{display:flex;flex-wrap:wrap;align-items:center;gap:6px;line-height:1.6;padding-bottom:2px}
 .cli-nome{font-size:.98rem;font-weight:600;margin:0;text-transform:capitalize}
 .cli-meta{color:#6b6570;font-size:.8rem;margin:0;line-height:1.45}
@@ -71,21 +73,23 @@ def cliente_supabase():
 
 
 def tela_login():
-    st.title("Follow up · Dress Me Up Goiânia")
-    st.caption("Entre com o usuário e a senha que a Kami cadastrou para você.")
-    if st.session_state.pop("msg_saida", None):
-        st.info(f"Você foi desconectada depois de {INATIVIDADE_MIN} minutos sem uso. Entre de novo.")
-    with st.form("login"):
-        usuario = st.text_input("Usuário").strip().lower()
-        senha = st.text_input("Senha", type="password")
-        if st.form_submit_button("Entrar", type="primary"):
-            email = usuario if "@" in usuario else f"{usuario}@{DOMINIO}"
-            try:
-                res = cliente_supabase().auth.sign_in_with_password({"email": email, "password": senha})
-                st.session_state.user_email = res.user.email.split("@")[0]
-                st.rerun()
-            except Exception:
-                st.error("Usuário ou senha incorretos. Confira e tente de novo.")
+    _, meio, _ = st.columns([1, 1.4, 1])
+    with meio:
+        st.title("Follow up · DRESS ME UP Goiânia")
+        st.caption("Entre com o usuário e a senha que a Kami cadastrou para você.")
+        if st.session_state.pop("msg_saida", None):
+            st.info(f"Você foi desconectada depois de {INATIVIDADE_MIN} minutos sem uso. Entre de novo.")
+        with st.form("login"):
+            usuario = st.text_input("Usuário").strip().lower()
+            senha = st.text_input("Senha", type="password")
+            if st.form_submit_button("Entrar", type="primary"):
+                email = usuario if "@" in usuario else f"{usuario}@{DOMINIO}"
+                try:
+                    res = cliente_supabase().auth.sign_in_with_password({"email": email, "password": senha})
+                    st.session_state.user_email = res.user.email.split("@")[0]
+                    st.rerun()
+                except Exception:
+                    st.error("Usuário ou senha incorretos. Confira e tente de novo.")
 
 
 def sair():
@@ -182,9 +186,9 @@ def tabela_resumo(linhas, colunas, alerta=()):
 
 # ---------- tela principal ----------
 def tela_lista():
-    topo, botao = st.columns([5, 1])
-    topo.title("Follow up · Dress Me Up Goiânia")
-    if botao.button("Sair"):
+    topo, botao = st.columns([6, 1], vertical_alignment="center")
+    topo.title("Follow up · DRESS ME UP Goiânia")
+    if botao.button("Sair", icon="🚪", use_container_width=True):
         sair()
     nome = st.session_state.get("nome_vendedora")
     if nome is None:
@@ -196,6 +200,9 @@ def tela_lista():
             nome = ""
         st.session_state.nome_vendedora = nome
     gestora = st.session_state.get("gestora", False)
+    if nome:
+        st.markdown(f'<p class="quem">{"Gestora" if gestora else "Vendedora"}: <b>{nome.upper()}</b></p>',
+                    unsafe_allow_html=True)
     if gestora:
         # gestoras acompanham só o follow-up (resumo por vendedora); a confirmação fica com as vendedoras
         tela_followup(nome, gestora)
@@ -209,11 +216,7 @@ def tela_lista():
 
 
 def tela_followup(nome, gestora):
-    st.caption((f"Olá, {nome}! Você vê as clientes de toda a equipe, " if gestora else
-                f"Olá, {nome}! Estas são as suas clientes (pela cor da agenda) " if nome else "Clientes ")
-               + "que faltaram ou vieram e ainda não fecharam, com evento por vir. "
-               "Separadas pelo dia em que estavam na agenda, das mais recentes para as mais antigas. "
-               "A lista se atualiza sozinha com a agenda.")
+    st.caption("Clientes que faltaram ou não fecharam, com evento por vir.")
 
     clientes, fus = carregar()
     hoje = date.today().isoformat()
@@ -242,17 +245,30 @@ def tela_followup(nome, gestora):
         resumo_semana(lista, semana_ini)
     else:
         cont = {s: sum(1 for c in lista if c["_status"] == s) for s in STATUS}
-        cols = st.columns(3)
-        for i, s in enumerate(STATUS):
-            cols[i % 3].metric(s, cont[s])
+        st.markdown(" · ".join(f"**{n}** {s.lower()}" for s, n in cont.items() if n))
 
     PERIODOS = ["Últimos 7 dias", "Fila antiga (mais de 7 dias)", "Todos"]
-    filtro_per = st.selectbox("Período (dia em que estava na agenda)", PERIODOS, index=0 if gestora else 2)
-    f1, f2 = st.columns(2)
-    filtro_status = f1.selectbox("Follow-up", ["Todos"] + STATUS + ["Retorno vencido"], index=1)
-    filtro_sit = f2.selectbox("Situação", ["Todas"] + list(SITUACAO.values()))
-    filtro_vend = st.selectbox("Vendedora", ["Todas"] + EQUIPE_VENDAS) if gestora else "Todas"
-    busca = st.text_input("Buscar nome ou telefone").strip().lower()
+    cols_f = st.columns(4)
+    filtro_per = cols_f[0].selectbox("Período na agenda", PERIODOS, index=0 if gestora else 2)
+    filtro_status = cols_f[1].selectbox("Follow-up", ["Todos"] + STATUS + ["Retorno vencido"], index=1)
+    filtro_sit = cols_f[2].selectbox("Situação", ["Todas"] + list(SITUACAO.values()))
+    if gestora:
+        filtro_vend = cols_f[3].selectbox("Vendedora", ["Todas"] + EQUIPE_VENDAS)
+    else:
+        filtro_vend = "Todas"
+        ordem = cols_f[3].selectbox("Ordenar por", ORDENS)
+
+    ocasioes = sorted({_ocasiao(c) for c in lista if _ocasiao(c)})
+    meses = sorted({c["evento"][:7] for c in lista if c.get("evento")})
+    OPC_EVENTO = ["Todas", "Próximos 15 dias", "Próximos 30 dias", "Próximos 60 dias"] + [_nome_mes(m) for m in meses]
+    cols_g = st.columns([2, 2, 2, 3] if gestora else [2, 2, 3])
+    filtro_oc = cols_g[0].selectbox("Ocasião", ["Todas"] + ocasioes)
+    filtro_ev = cols_g[1].selectbox("Data do evento", OPC_EVENTO)
+    if gestora:
+        ordem = cols_g[2].selectbox("Ordenar por", ORDENS)
+    busca = cols_g[-1].text_input("Buscar nome ou telefone").strip().lower()
+    mes_ev = {_nome_mes(m): m for m in meses}
+    dias_ev = {"Próximos 15 dias": 15, "Próximos 30 dias": 30, "Próximos 60 dias": 60}
 
     def passa(c):
         ult = c.get("ultimo") or ""
@@ -263,31 +279,114 @@ def tela_followup(nome, gestora):
         elif filtro_status != "Todos" and c["_status"] != filtro_status: return False
         if filtro_sit != "Todas" and c["_sit"] != filtro_sit: return False
         if filtro_vend != "Todas" and c.get("vend_atend") != filtro_vend: return False
+        if filtro_oc != "Todas" and _ocasiao(c) != filtro_oc: return False
+        ev = c.get("evento") or ""
+        if filtro_ev in dias_ev and not (ev and ev <= (date.today() + timedelta(days=dias_ev[filtro_ev])).isoformat()):
+            return False
+        if filtro_ev in mes_ev and ev[:7] != mes_ev[filtro_ev]: return False
         if busca:
             dig = "".join(ch for ch in busca if ch.isdigit())
             if busca not in (c.get("nome") or "").lower() and not (dig and dig in (c.get("tel") or "")): return False
         return True
 
     # mais recente primeiro: quem esteve na agenda por último é quem pede retorno antes
-    filtrada = sorted(filter(passa, lista), key=lambda c: (c.get("ultimo") or "", c.get("nome") or ""), reverse=True)
-    st.caption(f"{len(filtrada)} clientes nesta lista")
-    pag = st.session_state.get("pag", 1)
-    por_dia = {}
-    for c in filtrada:
-        por_dia[c.get("ultimo")] = por_dia.get(c.get("ultimo"), 0) + 1
-    atual = object()
-    for c in filtrada[: pag * POR_PAGINA]:
-        if c.get("ultimo") != atual:
-            atual = c.get("ultimo")
-            txt, cls = titulo_dia(atual)
-            n = por_dia[atual]
-            st.markdown(f'<div class="dia {cls}"><b>{txt}</b><span>{n} cliente{"s" if n > 1 else ""}</span></div>',
-                        unsafe_allow_html=True)
-        cartao(c)
-    if len(filtrada) > pag * POR_PAGINA and st.button("Mostrar mais"):
-        st.session_state.pag = pag + 1
-        st.rerun()
+    if ordem == ORDENS[1]:  # evento mais próximo primeiro
+        filtrada = sorted(filter(passa, lista), key=lambda c: (c.get("evento") or "9999", c.get("nome") or ""))
+    else:
+        filtrada = sorted(filter(passa, lista), key=lambda c: (c.get("ultimo") or "", c.get("nome") or ""), reverse=True)
+    st.caption(f"{len(filtrada)} clientes nesta lista · mude Follow-up, Retorno, Motivo ou Anotação "
+               "direto na tabela: salva na hora para toda a equipe.")
+    tabela_followup(filtrada[:LIMITE_TABELA], gestora)
+    if len(filtrada) > LIMITE_TABELA:
+        st.caption(f"Mostrando as {LIMITE_TABELA} mais recentes. Use os filtros para achar as outras.")
 
+
+LIMITE_TABELA = 300
+ORDENS = ["Agenda mais recente", "Evento mais próximo"]
+_MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+
+
+def _ocasiao(c):
+    return (c.get("ocasiao") or c.get("grupo") or "").strip()
+
+
+def _nome_mes(aaaa_mm):
+    """'2026-12' -> 'Evento em dez/2026'"""
+    return f"Evento em {_MESES[int(aaaa_mm[5:7]) - 1]}/{aaaa_mm[:4]}"
+
+
+def _salvar_tabela():
+    """Chamado quando alguém edita uma célula: grava a linha inteira e recarrega a tabela."""
+    ed = st.session_state.get(f"tab_fu_{st.session_state.get('fu_ver', 0)}") or {}
+    base = st.session_state.get("_fu_base") or []
+    avisos = []
+    for idx, mud in (ed.get("edited_rows") or {}).items():
+        if idx >= len(base):
+            continue
+        linha = {**base[idx], **mud}
+        status = linha.get("Follow-up") or "Por fazer"
+        prox = linha.get("Próximo contato")
+        if isinstance(prox, str) and prox:
+            prox = date.fromisoformat(prox[:10])
+        motivo = linha.get("Motivo") or ""
+        try:
+            salvar(linha["_id"], status, prox or None, motivo, linha.get("Anotação") or "")
+        except Exception:
+            avisos.append(f"Não consegui salvar {linha.get('Cliente')}. Tente de novo.")
+            continue
+        if status == "Não vai fechar" and not motivo:
+            avisos.append(f"{linha.get('Cliente')}: escolha o Motivo na mesma linha.")
+    st.session_state.fu_ver = st.session_state.get("fu_ver", 0) + 1
+    st.session_state._fu_avisos = avisos or ["Salvo para toda a equipe."]
+
+
+def tabela_followup(clientes, gestora):
+    import pandas as pd
+    for msg in st.session_state.pop("_fu_avisos", []):
+        st.toast(msg)
+    base = []
+    for c in clientes:
+        f = c["_f"]
+        tel = c.get("tel") or ""
+        linha = {"_id": c["id"], "Agenda": ddmm(c.get("ultimo"))[:5], "Cliente": c.get("nome") or "",
+                 "Ocasião": _ocasiao(c), "Evento": ddmm(c.get("evento"))[:5],
+                 "Situação": {"Veio e não fechou": "Não fechou", "Veio, conferir se fechou": "Conferir"}.get(c["_sit"], c["_sit"])}
+        if gestora:
+            linha["Vendedora"] = (c.get("vend_atend") or "").split(" ")[0]
+        linha.update({"Follow-up": c["_status"] if c["_status"] in STATUS else "Por fazer",
+                      "Próximo contato": date.fromisoformat(f["proximo"]) if f.get("proximo") else None,
+                      "Motivo": f.get("motivo") or "", "Anotação": f.get("nota") or "",
+                      "WhatsApp": f"https://wa.me/55{tel}" if tel else None})
+        base.append(linha)
+    st.session_state._fu_base = base
+    if not base:
+        st.info("Nenhuma cliente com esses filtros.")
+        return
+    df = pd.DataFrame(base)
+    travadas = ["Agenda", "Cliente", "Ocasião", "Evento", "Situação", "Vendedora", "WhatsApp"]
+    st.data_editor(
+        df, key=f"tab_fu_{st.session_state.get('fu_ver', 0)}", on_change=_salvar_tabela,
+        hide_index=True, use_container_width=True, num_rows="fixed",
+        height=min(36 * (len(base) + 1) + 4, 720),
+        disabled=[c for c in travadas if c in df.columns],
+        column_order=[c for c in ["Agenda", "Cliente", "WhatsApp", "Ocasião", "Evento", "Situação", "Vendedora",
+                                  "Follow-up", "Próximo contato", "Motivo", "Anotação"] if c in df.columns],
+        column_config={
+            "Agenda": st.column_config.TextColumn("Agenda", width="small", help="Dia em que a cliente estava na agenda"),
+            "Cliente": st.column_config.TextColumn("Cliente", width="medium"),
+            "Ocasião": st.column_config.TextColumn("Ocasião", width="small"),
+            "Evento": st.column_config.TextColumn("Evento", width="small"),
+            "Situação": st.column_config.TextColumn("Situação", width="small"),
+            "Vendedora": st.column_config.TextColumn("Vendedora", width="small"),
+            "Follow-up": st.column_config.SelectboxColumn("Follow-up", options=STATUS, required=True, width="medium"),
+            "Próximo contato": st.column_config.DateColumn("Retorno", format="DD/MM", width="small",
+                                                           help="Dia em que vai falar com a cliente de novo"),
+            "Motivo": st.column_config.SelectboxColumn("Motivo", options=[""] + list(MOTIVOS), width="medium",
+                                                        help="Só quando a cliente não vai fechar"),
+            "Anotação": st.column_config.TextColumn("Anotação", width="medium"),
+            "WhatsApp": st.column_config.LinkColumn("Chamar", display_text="WhatsApp", width="small"),
+        },
+    )
 
 def resumo_semana(lista, semana_ini):
     """Resumo da Tamires: o que cada vendedora atendeu na semana e quanto já teve follow-up."""
