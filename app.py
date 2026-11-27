@@ -4,7 +4,7 @@ App da equipe de vendas: lista de clientes para follow-up, atualizada com a agen
 Não mostra valores, pedidos ou faturamento.
 """
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
@@ -17,7 +17,8 @@ STATUS = ["Por fazer", "Tentei, sem resposta", "Em conversa", "Reagendou", "Fech
 MOTIVOS = ["", "Preço", "Alugou em outro lugar", "Não encontrou o vestido", "Desistiu do evento", "Comprou vestido", "Outro"]
 SITUACAO = {"Não compareceu": "Faltou", "Atendida, não fechou": "Veio e não fechou", "Em aberto": "Veio, conferir se fechou"}
 COR_SIT = {"Faltou": "#8a2f3b", "Veio e não fechou": "#9a5a2b", "Veio, conferir se fechou": "#2d3f5f"}
-VENDEDORAS = ["Todas", "Natalya", "Raquel", "Jéssica Martins", "Sem vendedora"]
+EQUIPE_VENDAS = ["Natalya", "Raquel", "Jéssica Martins", "Andressa", "Kerem"]
+VENDEDORAS = ["Todas"] + EQUIPE_VENDAS + ["Sem vendedora"]
 POR_PAGINA = 25
 INATIVIDADE_MIN = 5  # desconecta depois de 5 minutos sem uso
 DOMINIO = "followup.dressmeup.com.br"  # e-mail interno: usuario@DOMINIO (não recebe mensagens)
@@ -195,6 +196,10 @@ def tela_lista():
             nome = ""
         st.session_state.nome_vendedora = nome
     gestora = st.session_state.get("gestora", False)
+    if gestora:
+        # gestoras acompanham só o follow-up (resumo por vendedora); a confirmação fica com as vendedoras
+        tela_followup(nome, gestora)
+        return
     aba = st.radio("Tela", ["📲 Confirmar agendamentos", "📋 Follow-up"], horizontal=True,
                    label_visibility="collapsed", key="aba")
     if aba.startswith("📲"):
@@ -232,35 +237,27 @@ def tela_followup(nome, gestora):
         prox = c["_f"].get("proximo")
         c["_vencido"] = bool(prox and prox < hoje and c["_status"] not in ("Fechou", "Não vai fechar"))
 
+    semana_ini = (hoje_local() - timedelta(days=6)).isoformat()  # últimos 7 dias, contando hoje
     if gestora:
-        st.markdown("**Resumo por vendedora**")
-        cols_r = STATUS + ["Retorno vencido", "Total"]
-        linhas = []
-        for v in ["Natalya", "Raquel", "Jéssica Martins", ""]:
-            grupo = [c for c in lista if (c.get("vend_atend") or "") == v]
-            if not grupo and not v:
-                continue
-            cont = {s: sum(1 for c in grupo if c["_status"] == s) for s in STATUS}
-            cont["Retorno vencido"] = sum(1 for c in grupo if c["_vencido"])
-            cont["Total"] = len(grupo)
-            linhas.append((v.split()[0] if v else "Sem vendedora", cont))
-        tot = {k: sum(l[1][k] for l in linhas) for k in cols_r}
-        linhas.append(("Total", tot))
-        tabela_resumo(linhas, cols_r, alerta=("Por fazer", "Retorno vencido"))
-        st.caption("Retorno vencido = a vendedora marcou um próximo contato que já passou e a cliente ainda não fechou nem desistiu.")
+        resumo_semana(lista, semana_ini)
     else:
         cont = {s: sum(1 for c in lista if c["_status"] == s) for s in STATUS}
         cols = st.columns(3)
         for i, s in enumerate(STATUS):
             cols[i % 3].metric(s, cont[s])
 
+    PERIODOS = ["Últimos 7 dias", "Fila antiga (mais de 7 dias)", "Todos"]
+    filtro_per = st.selectbox("Período (dia em que estava na agenda)", PERIODOS, index=0 if gestora else 2)
     f1, f2 = st.columns(2)
     filtro_status = f1.selectbox("Follow-up", ["Todos"] + STATUS + ["Retorno vencido"], index=1)
     filtro_sit = f2.selectbox("Situação", ["Todas"] + list(SITUACAO.values()))
-    filtro_vend = st.selectbox("Vendedora", ["Todas", "Natalya", "Raquel", "Jéssica Martins"]) if gestora else "Todas"
+    filtro_vend = st.selectbox("Vendedora", ["Todas"] + EQUIPE_VENDAS) if gestora else "Todas"
     busca = st.text_input("Buscar nome ou telefone").strip().lower()
 
     def passa(c):
+        ult = c.get("ultimo") or ""
+        if filtro_per == PERIODOS[0] and ult < semana_ini: return False
+        if filtro_per == PERIODOS[1] and ult >= semana_ini: return False
         if filtro_status == "Retorno vencido":
             if not c["_vencido"]: return False
         elif filtro_status != "Todos" and c["_status"] != filtro_status: return False
@@ -290,6 +287,53 @@ def tela_followup(nome, gestora):
     if len(filtrada) > pag * POR_PAGINA and st.button("Mostrar mais"):
         st.session_state.pag = pag + 1
         st.rerun()
+
+
+def resumo_semana(lista, semana_ini):
+    """Resumo da Tamires: o que cada vendedora atendeu na semana e quanto já teve follow-up."""
+    st.markdown(f"**Resumo da semana por vendedora** · atendimentos de {ddmm(semana_ini)} até hoje")
+    cols = ["Atendidas", "Follow-up feito", "Pendentes", "% feito", "Fecharam", "Retorno vencido"]
+    linhas, tot = [], {k: 0 for k in cols}
+    for v in EQUIPE_VENDAS:
+        todas = [c for c in lista if c.get("vend_atend") == v]
+        sem = [c for c in todas if (c.get("ultimo") or "") >= semana_ini]
+        feito = sum(1 for c in sem if c["_status"] != "Por fazer")
+        cont = {"Atendidas": len(sem), "Follow-up feito": feito, "Pendentes": len(sem) - feito,
+                "Fecharam": sum(1 for c in sem if c["_status"] == "Fechou"),
+                "Retorno vencido": sum(1 for c in todas if c["_vencido"])}
+        for k in cont: tot[k] += cont[k]
+        cont["% feito"] = f"{round(100 * feito / len(sem))}%" if sem else "–"
+        linhas.append((v.split()[0], cont))
+    tot["% feito"] = f"{round(100 * tot['Follow-up feito'] / tot['Atendidas'])}%" if tot["Atendidas"] else "–"
+    linhas.append(("Total", tot))
+    tabela_resumo(linhas, cols, alerta=("Pendentes", "Retorno vencido"))
+    st.caption("Follow-up feito = qualquer status diferente de \"Por fazer\". "
+               "Retorno vencido = tinha próximo contato marcado para uma data que já passou e a cliente não fechou nem desistiu.")
+
+    antigas = sum(1 for c in lista if (c.get("ultimo") or "") < semana_ini and c["_status"] == "Por fazer")
+    if antigas:
+        st.caption(f"📦 **Fila antiga:** {antigas} clientes de antes de {ddmm(semana_ini)} ainda sem follow-up. "
+                   "Para ver, escolha Período → Fila antiga.")
+
+    # último acesso de cada uma
+    try:
+        acessos = cliente_supabase().rpc("acessos_equipe").execute().data or []
+    except Exception:
+        acessos = []
+    partes = []
+    for a in acessos:
+        if a.get("papel") != "vendedora":
+            continue
+        u = a.get("ultimo_acesso")
+        if not u:
+            partes.append(f"**{a['nome'].split()[0]}**: nunca entrou")
+            continue
+        quando = datetime.fromisoformat(u.replace("Z", "+00:00")).astimezone(ZoneInfo("America/Sao_Paulo"))
+        dif = (hoje_local() - quando.date()).days
+        dia = "hoje" if dif == 0 else "ontem" if dif == 1 else f"{quando:%d/%m}"
+        partes.append(f"**{a['nome'].split()[0]}**: {dia} às {quando:%H:%M}")
+    if partes:
+        st.caption("👤 Último acesso ao app · " + " · ".join(partes))
 
 
 def cartao(c):
@@ -431,7 +475,7 @@ def tela_confirmar(nome, gestora):
 
     c1, c2 = st.columns(2)
     dia = c1.selectbox("Dia", dias, index=padrao, format_func=rot)
-    vend = c2.selectbox("Vendedora", ["Todas", "Natalya", "Raquel", "Jéssica Martins"]) if gestora else "Todas"
+    vend = c2.selectbox("Vendedora", ["Todas"] + EQUIPE_VENDAS) if gestora else "Todas"
     lista = [a for a in ag if a["dia"] == dia and (vend == "Todas" or a.get("vend_atend") == vend)]
 
     def status(a):
@@ -442,7 +486,7 @@ def tela_confirmar(nome, gestora):
     if gestora:
         do_dia = [a for a in ag if a["dia"] == dia]
         linhas = []
-        for v in ["Natalya", "Raquel", "Jéssica Martins"]:
+        for v in EQUIPE_VENDAS:
             g = [a for a in do_dia if a.get("vend_atend") == v]
             cont = {c: sum(1 for a in g if status(a) == c) for c in CONF}
             cont["Total"] = len(g)
