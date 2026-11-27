@@ -202,6 +202,67 @@ def tabela_resumo(linhas, colunas, alerta=()):
     st.markdown(f'<div class="resumo-wrap"><table class="resumo"><tr>{th}</tr>{corpo}</table></div>', unsafe_allow_html=True)
 
 
+# ---------- acesso só na rede da loja ----------
+def ip_cliente():
+    try:
+        h = st.context.headers
+        ip = (h.get("X-Forwarded-For") or "").split(",")[0].strip() or (h.get("X-Real-Ip") or "").strip()
+    except Exception:
+        ip = ""
+    return ip
+
+
+def rede_de(ip):
+    """IPv4 inteiro; IPv6 pelo prefixo /64 (a parte final muda sozinha)."""
+    if not ip:
+        return ""
+    return ":".join(ip.split(":")[:4]) + "::/64" if ":" in ip else ip
+
+
+def redes_liberadas():
+    try:
+        return cliente_supabase().table("redes_liberadas").select("*").execute().data or []
+    except Exception:
+        return None  # se não der para ler, não trava ninguém
+
+
+def bloqueio_fora_da_loja():
+    """Vendedora fora da internet da loja: mostra aviso e não abre os dados."""
+    lib = redes_liberadas()
+    if not lib:  # nenhuma rede cadastrada ainda = sem restrição
+        return False
+    if rede_de(ip_cliente()) in {r["rede"] for r in lib}:
+        return False
+    st.error("🔒 Este app só abre na internet da loja. Conecte no Wi-Fi da DRESS ME UP e entre de novo.")
+    return True
+
+
+def painel_rede(nome):
+    """Para as gestoras: liberar ou remover a internet da loja."""
+    lib = redes_liberadas() or []
+    rede = rede_de(ip_cliente())
+    ativo = bool(lib)
+    with st.expander("🔒 Acesso das vendedoras: " + ("só na internet da loja" if ativo else "liberado em qualquer lugar")):
+        st.caption("Com uma rede cadastrada, as vendedoras só conseguem abrir o app conectadas nela. "
+                   "Você e a Tamires entram de qualquer lugar. Se a internet da loja trocar de endereço "
+                   "(acontece quando o roteador reinicia), as vendedoras vão ver o aviso: é só uma de vocês, "
+                   "na loja, tocar em Liberar de novo.")
+        st.markdown(f"Internet desta conexão agora: **{rede or 'não identificada'}**")
+        for r in lib:
+            a, b = st.columns([5, 1], vertical_alignment="center")
+            a.markdown(f"✅ **{r.get('nome') or 'Loja'}** · {r['rede']} · liberada por {(r.get('por') or '').capitalize()}")
+            if b.button("Remover", key=f"rm_{r['rede']}"):
+                cliente_supabase().table("redes_liberadas").delete().eq("rede", r["rede"]).execute()
+                st.rerun()
+        if rede and rede not in {r["rede"] for r in lib}:
+            if st.button("📍 Estou na loja: liberar esta internet", type="primary"):
+                cliente_supabase().table("redes_liberadas").insert(
+                    {"rede": rede, "nome": "Loja", "por": st.session_state.get("user_email")}).execute()
+                st.rerun()
+        elif not rede:
+            st.warning("Não consegui identificar a internet desta conexão, então não dá para liberar daqui.")
+
+
 # ---------- tela principal ----------
 def tela_lista():
     topo, botao = st.columns([6, 1], vertical_alignment="center")
@@ -222,6 +283,10 @@ def tela_lista():
         st.markdown(f'<div class="marca">Uso interno DRESS ME UP · {nome} · {hoje_local():%d/%m/%Y}</div>', unsafe_allow_html=True)
         st.markdown(f'<p class="quem">{"Gestora" if gestora else "Vendedora"}: <b>{nome.upper()}</b></p>',
                     unsafe_allow_html=True)
+    if not gestora and bloqueio_fora_da_loja():
+        return
+    if gestora:
+        painel_rede(nome)
     if gestora:
         # gestoras acompanham só o follow-up (resumo por vendedora); a confirmação fica com as vendedoras
         tela_followup(nome, gestora)
