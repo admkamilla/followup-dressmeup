@@ -60,6 +60,14 @@ table.resumo td.alerta{color:#8a2f3b;font-weight:700}
 .resumo-wrap{overflow-x:auto}
 .hora{font-weight:700;color:#6e2a4f;margin-right:2px}
 [data-testid="stRadio"] label p{font-size:.8rem}
+[data-testid="stRadio"] [role="radiogroup"]{gap:.15rem .55rem!important}
+[data-testid="stRadio"] [role="radiogroup"] label{margin-right:0!important;padding-right:0!important}
+[data-testid="stPopover"] button{min-height:2.2rem;padding:.3rem .6rem}
+[data-testid="stPopover"] button p{font-size:.85rem}
+.nota{color:#6e2a4f;font-size:.8rem}
+[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextInput"] [data-baseweb="input"]{background:#fff;border:1px solid #e3dee6;border-radius:8px}
+[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextInput"] input{font-size:.85rem}
+.falta{color:#8a2f3b;font-size:.78rem;font-weight:600}
 [data-testid="stLinkButton"] a{padding:.3rem .6rem;min-height:2.2rem}
 [data-testid="stLinkButton"] p{font-size:.85rem}
 </style>
@@ -295,14 +303,106 @@ def tela_followup(nome, gestora):
         filtrada = sorted(filter(passa, lista), key=lambda c: (c.get("evento") or "9999", c.get("nome") or ""))
     else:
         filtrada = sorted(filter(passa, lista), key=lambda c: (c.get("ultimo") or "", c.get("nome") or ""), reverse=True)
-    st.caption(f"{len(filtrada)} clientes nesta lista · mude Follow-up, Retorno, Motivo ou Anotação "
-               "direto na tabela: salva na hora para toda a equipe.")
-    tabela_followup(filtrada[:LIMITE_TABELA], gestora)
-    if len(filtrada) > LIMITE_TABELA:
-        st.caption(f"Mostrando as {LIMITE_TABELA} mais recentes. Use os filtros para achar as outras.")
+    st.caption(f"{len(filtrada)} clientes nesta lista · marcou, salvou: vale na hora para toda a equipe.")
+    cartoes_followup(filtrada, gestora, agrupar=(ordem == ORDENS[0]))
 
 
 LIMITE_TABELA = 300
+COR_FU = {"Por fazer": "#8a8590", "Tentei, sem resposta": "#b5761b", "Em conversa": "#2f5f9e", "Reagendou": "#5b4a8a",
+          "Dados para contrato": "#0f7a76", "Fechou": "#1a7f4b", "Não vai fechar": "#8a2f3b"}
+SIT_CURTA = {"Veio e não fechou": "Não fechou", "Veio, conferir se fechou": "Conferir"}
+
+
+def _salvar_card(cid):
+    """Salva na hora qualquer mudança do cartão (status, retorno, motivo, anotação)."""
+    ss = st.session_state
+    status = ss.get(f"s_{cid}") or "Por fazer"
+    base = ss.get("_fu_atual", {}).get(cid, {})
+    motivo = (ss.get(f"m_{cid}") if f"m_{cid}" in ss else base.get("motivo")) or "" if status == "Não vai fechar" else ""
+    prox = ss.get(f"p_{cid}") if f"p_{cid}" in ss else (date.fromisoformat(base["proximo"]) if base.get("proximo") else None)
+    try:
+        salvar(cid, status, prox, motivo, ss.get(f"n_{cid}") or "")
+        st.toast("Escolha o motivo no cartão." if status == "Não vai fechar" and not motivo else "Salvo para toda a equipe.")
+    except Exception:
+        st.toast("Não consegui salvar. Tente de novo.")
+
+
+def dia_curto(agendado):
+    """'2026-11-27' -> ('sexta, 27/11', 'hoje')"""
+    if not agendado:
+        return "Sem data na agenda", "sem"
+    d = date.fromisoformat(agendado)
+    return f"{SEMANA[d.weekday()]}, {d:%d/%m}", ("hoje" if d == hoje_local() else "")
+
+
+def cartoes_followup(clientes, gestora, agrupar=True):
+    if not clientes:
+        st.info("Nenhuma cliente com esses filtros.")
+        return
+    mostrar = st.session_state.get("fu_mostrar", POR_PAGINA)
+    st.session_state._fu_atual = {c["id"]: c["_f"] for c in clientes[:mostrar]}
+    grupo_atual = None
+    for c in clientes[:mostrar]:
+        if agrupar:
+            titulo, cls = dia_curto(c.get("ultimo"))
+            if titulo != grupo_atual:
+                grupo_atual = titulo
+                n = sum(1 for x in clientes if dia_curto(x.get("ultimo"))[0] == titulo)
+                st.markdown(f'<div class="dia {cls}"><b>{titulo}</b><span>{n} cliente{"s" if n != 1 else ""}</span></div>',
+                            unsafe_allow_html=True)
+        cartao_slim(c, gestora)
+    if len(clientes) > mostrar:
+        if st.button(f"Mostrar mais {min(POR_PAGINA, len(clientes) - mostrar)} (de {len(clientes) - mostrar} restantes)",
+                     use_container_width=True):
+            st.session_state.fu_mostrar = mostrar + POR_PAGINA
+            st.rerun()
+
+
+def cartao_slim(c, gestora):
+    f, cid = c["_f"], c["id"]
+    stt = c["_status"] if c["_status"] in STATUS else "Por fazer"
+    sit = c["_sit"]
+    with st.container(border=True):
+        partes = [f"agenda {ddmm(c.get('ultimo'))[:5]}" if c.get("ultimo") else "", _ocasiao(c)]
+        if c.get("evento"):
+            dias = (date.fromisoformat(c["evento"]) - date.today()).days
+            partes.append(f"evento {ddmm(c['evento'])}" + (f" · <b>faltam {dias} dias</b>" if 0 <= dias <= 21 else ""))
+        if c.get("vend_atend"):
+            partes.append(f"<b>{c['vend_atend'].split()[0]}</b>")
+        # linha de cima: cliente à esquerda, bolinhas de status à direita
+        esq, dir_ = st.columns([3.3, 6.7], vertical_alignment="center")
+        esq.markdown(f'<div class="cab"><span class="cli-nome">{c.get("nome") or ""}</span>'
+                     f'<span class="pill" style="background:{COR_SIT.get(sit, "#555")}">{SIT_CURTA.get(sit, sit)}</span></div>'
+                     f'<div class="cli-meta">{" · ".join(p for p in partes if p)}</div>', unsafe_allow_html=True)
+        dir_.radio("Follow-up", STATUS, index=STATUS.index(stt), horizontal=True, label_visibility="collapsed",
+                   key=f"s_{cid}", on_change=_salvar_card, args=(cid,))
+        # linha de baixo: WhatsApp + anotação aberta + retorno (ou motivo, se não vai fechar)
+        nao_vai = st.session_state.get(f"s_{cid}", stt) == "Não vai fechar"
+        b, nota, ult = st.columns([1.3, 6.9, 1.8], vertical_alignment="center")
+        if c.get("tel"):
+            b.link_button("📲 WhatsApp", f"https://wa.me/55{c['tel']}", use_container_width=True)
+        else:
+            b.markdown('<span class="stamp">Sem telefone</span>', unsafe_allow_html=True)
+        nota.text_input("Anotação", value=f.get("nota") or "", label_visibility="collapsed",
+                        placeholder="📝 Anotação: ex.: pediu fotos de vestidos azuis, retornar sexta",
+                        key=f"n_{cid}", on_change=_salvar_card, args=(cid,))
+        if nao_vai:
+            mot = f.get("motivo") or ""
+            ult.selectbox("Motivo", MOTIVOS, index=MOTIVOS.index(mot) if mot in MOTIVOS else 0,
+                          label_visibility="collapsed", format_func=lambda m: m or "Escolha o motivo",
+                          key=f"m_{cid}", on_change=_salvar_card, args=(cid,))
+        else:
+            prox = date.fromisoformat(f["proximo"]) if f.get("proximo") else None
+            with ult.popover(f"🔁 Retorno {prox:%d/%m}" if prox else "🔁 Retorno", use_container_width=True):
+                st.date_input("Dia de falar com ela de novo", value=prox, format="DD/MM/YYYY",
+                              key=f"p_{cid}", on_change=_salvar_card, args=(cid,))
+        if nao_vai and not f.get("motivo"):
+            st.markdown('<span class="falta">Falta o motivo: escolha ao lado da anotação.</span>', unsafe_allow_html=True)
+        if c["_auto"]:
+            st.markdown(f'<span class="stamp">Atualizado pela agenda em {ddmm((c.get("auto_em") or "")[:10])}</span>',
+                        unsafe_allow_html=True)
+        elif f.get("em"):
+            st.markdown(f'<span class="stamp">Atualizado por {carimbo(f)}</span>', unsafe_allow_html=True)
 ORDENS = ["Agenda mais recente", "Evento mais próximo"]
 _MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
@@ -550,9 +650,13 @@ def carimbo(c):
 
 def salvar_conf(agenda_id):
     novo = st.session_state.get(f"c_{agenda_id}")
-    if not novo or novo == "A confirmar":
+    if not novo:
         return
     try:
+        if novo == "A confirmar":  # desfaz uma marcação feita por engano
+            cliente_supabase().table("confirmacoes").delete().eq("agenda_id", agenda_id).execute()
+            st.toast("Marcação desfeita: voltou para A confirmar")
+            return
         cliente_supabase().table("confirmacoes").upsert({
             "agenda_id": agenda_id, "status": novo, "por": st.session_state.get("user_email"),
             "em": datetime.now(timezone.utc).isoformat()}).execute()
@@ -585,7 +689,7 @@ def tela_confirmar(nome, gestora):
 
     c1, c2 = st.columns(2)
     dia = c1.selectbox("Dia", dias, index=padrao, format_func=rot)
-    vend = c2.selectbox("Vendedora", ["Todas"] + EQUIPE_VENDAS) if gestora else "Todas"
+    vend = c2.selectbox("Vendedora", ["Todas"] + EQUIPE_VENDAS)
     lista = [a for a in ag if a["dia"] == dia and (vend == "Todas" or a.get("vend_atend") == vend)]
 
     def status(a):
@@ -612,7 +716,7 @@ def tela_confirmar(nome, gestora):
                 f'{falta} sem mensagem · {n_env} aguardando resposta · '
                 f'{n_ok} confirmada{"s" if n_ok != 1 else ""}</span></div>', unsafe_allow_html=True)
     if not lista:
-        st.info("Nenhum agendamento seu neste dia.")
+        st.info("Nenhum agendamento neste dia com esse filtro.")
         return
     st.caption("Toque em **Enviar no WhatsApp** e envie → marque **Mensagem enviada** (as outras veem e ninguém "
                "manda duas vezes) → quando a cliente responder, marque Confirmou, Vai remarcar ou Não respondeu.")
@@ -624,7 +728,7 @@ def tela_confirmar(nome, gestora):
             partes = [TIPO_ROTULO.get(a.get("tipo"), "")]
             if a.get("ocasiao"): partes.append(a["ocasiao"])
             if a.get("evento"): partes.append(f"evento {ddmm(a['evento'])}")
-            if gestora and a.get("vend_atend"): partes.append(a["vend_atend"])
+            if a.get("vend_atend"): partes.append(f"<b>{a['vend_atend'].split()[0]}</b>")
             st.markdown(f'<div class="cab"><span class="hora">{hora_txt(a.get("hora"))}</span>'
                         f'<span class="cli-nome nc">{a.get("nome") or ""}</span>'
                         f'<span class="pill" style="background:{COR_CONF[stt]}">{stt}</span></div>'
