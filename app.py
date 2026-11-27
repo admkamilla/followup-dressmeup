@@ -25,7 +25,16 @@ DOMINIO = "followup.dressmeup.com.br"  # e-mail interno: usuario@DOMINIO (não r
 
 st.markdown("""
 <style>
-.block-container{max-width:1400px;padding-top:3.6rem!important}
+/* esconde a barra do Streamlit (Share, estrela, editar, GitHub, Deploy, menu) */
+[data-testid="stToolbar"],[data-testid="stToolbarActions"],[data-testid="stAppDeployButton"],.stAppDeployButton,
+[data-testid="stMainMenu"],#MainMenu,[data-testid="stDecoration"]{display:none!important}
+header[data-testid="stHeader"]{background:transparent;height:0}
+/* dados internos: não imprime (sai página em branco) e não deixa selecionar/copiar texto da tela */
+@media print{body *{display:none!important}body:after{content:"Conteúdo interno da DRESS ME UP. Impressão não permitida.";display:block;padding:40px;font:16px sans-serif}}
+.stApp{-webkit-user-select:none;user-select:none}
+.stApp input,.stApp textarea{-webkit-user-select:text;user-select:text}
+.marca{position:fixed;right:14px;bottom:10px;font-size:.7rem;color:#6e2a4f;opacity:.55;pointer-events:none;z-index:999}
+.block-container{max-width:1400px;padding-top:1.8rem!important}
 h1{font-size:1.6rem!important;padding-bottom:0!important}
 .quem{font-size:1.15rem;color:#6e2a4f;margin:.35rem 0 .6rem;letter-spacing:.02em}
 .cab{display:flex;flex-wrap:wrap;align-items:center;gap:6px;line-height:1.6;padding-bottom:2px}
@@ -210,6 +219,7 @@ def tela_lista():
         st.session_state.nome_vendedora = nome
     gestora = st.session_state.get("gestora", False)
     if nome:
+        st.markdown(f'<div class="marca">Uso interno DRESS ME UP · {nome} · {hoje_local():%d/%m/%Y}</div>', unsafe_allow_html=True)
         st.markdown(f'<p class="quem">{"Gestora" if gestora else "Vendedora"}: <b>{nome.upper()}</b></p>',
                     unsafe_allow_html=True)
     if gestora:
