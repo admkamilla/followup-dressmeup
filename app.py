@@ -483,7 +483,11 @@ _MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", 
 
 
 def _ocasiao(c):
-    return (c.get("ocasiao") or c.get("grupo") or "").strip()
+    """Categoria padronizada (o texto livre da agenda vira um grupo: Formanda, Madrinha, Mãe/família...)."""
+    g = (c.get("grupo") or "").strip()
+    if g and g != "Não informado":
+        return g
+    return "Outro" if (c.get("ocasiao") or "").strip() else ""
 
 
 def _nome_mes(aaaa_mm):
