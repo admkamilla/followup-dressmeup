@@ -74,6 +74,12 @@ table.resumo td.alerta{color:#8a2f3b;font-weight:700}
 [data-testid="stPopover"] button{min-height:2.2rem;padding:.3rem .6rem}
 [data-testid="stPopover"] button p{font-size:.85rem}
 .nota{color:#6e2a4f;font-size:.8rem}
+.kpi-tit{font-size:.85rem;color:#6b6570;margin:.3rem 0 .5rem;font-weight:600}
+[class*="st-key-kpi_"] button{min-height:84px;border-radius:12px;background:#fff;border:1px solid #e3dee6;border-top-width:5px;flex-direction:column;align-items:flex-start;padding:.5rem .8rem}
+[class*="st-key-kpi_"] button p{margin:0;text-align:left;font-size:.8rem;color:#4a4550;line-height:1.15}
+[class*="st-key-kpi_"] button p:first-child{font-size:1.75rem;font-weight:700;color:#2b2a2e;line-height:1.1}
+[class*="st-key-kpi_"] button[kind="primary"]{background:#f6eef3;box-shadow:0 0 0 2px #6e2a4f}
+[class*="st-key-kpi_"] button:hover{border-color:#6e2a4f}
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextInput"] [data-baseweb="input"]{background:#fff;border:1px solid #e3dee6;border-radius:8px}
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextInput"] input{font-size:.85rem}
 .falta{color:#8a2f3b;font-size:.78rem;font-weight:600}
@@ -322,19 +328,21 @@ def tela_followup(nome, gestora):
     # retorno vencido: tinha próximo contato marcado para antes de hoje e não foi resolvida
     for c in lista:
         prox = c["_f"].get("proximo")
-        c["_vencido"] = bool(prox and prox < hoje and c["_status"] not in ("Fechou", "Não vai fechar"))
+        aberto = c["_status"] not in ("Fechou", "Não vai fechar")
+        c["_vencido"] = bool(prox and prox < hoje and aberto)
+        c["_ret_hoje"] = bool(prox and prox == hoje and aberto)
 
     semana_ini = (hoje_local() - timedelta(days=6)).isoformat()  # últimos 7 dias, contando hoje
+    painel = st.container()  # o painel de números fica no topo, preenchido depois dos filtros
     if gestora:
         resumo_semana(lista, semana_ini)
-    else:
-        cont = {s: sum(1 for c in lista if c["_status"] == s) for s in STATUS}
-        st.markdown(" · ".join(f"**{n}** {s.lower()}" for s, n in cont.items() if n))
 
     PERIODOS = ["Últimos 7 dias", "Fila antiga (mais de 7 dias)", "Todos"]
     cols_f = st.columns(4)
     filtro_per = cols_f[0].selectbox("Período na agenda", PERIODOS, index=0 if gestora else 2)
-    filtro_status = cols_f[1].selectbox("Follow-up", ["Todos"] + STATUS + ["Retorno vencido"], index=1)
+    if "f_status" not in st.session_state:
+        st.session_state.f_status = "Por fazer"
+    filtro_status = cols_f[1].selectbox("Follow-up", OPC_STATUS, key="f_status")
     filtro_sit = cols_f[2].selectbox("Situação", ["Todas"] + list(SITUACAO.values()))
     if gestora:
         filtro_vend = cols_f[3].selectbox("Vendedora", ["Todas"] + EQUIPE_VENDAS)
@@ -354,13 +362,11 @@ def tela_followup(nome, gestora):
     mes_ev = {_nome_mes(m): m for m in meses}
     dias_ev = {"Próximos 15 dias": 15, "Próximos 30 dias": 30, "Próximos 60 dias": 60}
 
-    def passa(c):
+    def passa(c, ignorar_status=False):
         ult = c.get("ultimo") or ""
         if filtro_per == PERIODOS[0] and ult < semana_ini: return False
         if filtro_per == PERIODOS[1] and ult >= semana_ini: return False
-        if filtro_status == "Retorno vencido":
-            if not c["_vencido"]: return False
-        elif filtro_status != "Todos" and c["_status"] != filtro_status: return False
+        if not ignorar_status and not passa_status(c, filtro_status): return False
         if filtro_sit != "Todas" and c["_sit"] != filtro_sit: return False
         if filtro_vend != "Todas" and c.get("vend_atend") != filtro_vend: return False
         if filtro_oc != "Todas" and _ocasiao(c) != filtro_oc: return False
@@ -372,6 +378,11 @@ def tela_followup(nome, gestora):
             dig = "".join(ch for ch in busca if ch.isdigit())
             if busca not in (c.get("nome") or "").lower() and not (dig and dig in (c.get("tel") or "")): return False
         return True
+
+    # painel do topo: conta com os outros filtros aplicados (período, vendedora, ocasião...), sem o de follow-up
+    base = [c for c in lista if passa(c, ignorar_status=True)]
+    with painel:
+        painel_numeros(base, filtro_status)
 
     # mais recente primeiro: quem esteve na agenda por último é quem pede retorno antes
     if ordem == ORDENS[1]:  # evento mais próximo primeiro
@@ -408,6 +419,46 @@ def dia_curto(agendado):
         return "Sem data na agenda", "sem"
     d = date.fromisoformat(agendado)
     return f"{SEMANA[d.weekday()]}, {d:%d/%m}", ("hoje" if d == hoje_local() else "")
+
+
+OPC_STATUS = ["Todos"] + STATUS + ["Retorno hoje", "Retorno vencido"]
+KPIS = [("Por fazer", "Por fazer"), ("Tentei, sem resposta", "Tentei"), ("Em conversa", "Em conversa"),
+        ("Reagendou", "Reagendou"), ("Dados para contrato", "Dados p/ contrato"), ("Fechou", "Fechou"),
+        ("Não vai fechar", "Não vai fechar"), ("Retorno hoje", "Retorno hoje"), ("Retorno vencido", "Retorno vencido"),
+        ("Todos", "Todas")]
+COR_KPI = {**COR_FU, "Retorno hoje": "#c26a12", "Retorno vencido": "#b3261e", "Todos": "#2b2a2e"}
+
+
+def passa_status(c, filtro):
+    if filtro == "Todos":
+        return True
+    if filtro == "Retorno vencido":
+        return c["_vencido"]
+    if filtro == "Retorno hoje":
+        return c["_ret_hoje"]
+    return c["_status"] == filtro
+
+
+def _escolher_status(valor):
+    st.session_state.f_status = valor
+    st.session_state.fu_mostrar = POR_PAGINA
+
+
+def painel_numeros(base, atual):
+    """Cartões grandes com o total de cada etapa; tocar num cartão mostra só aquelas clientes."""
+    cores = "".join(f".st-key-kpi_{OPC_STATUS.index(v)} button{{border-top-color:{COR_KPI.get(v, '#999')}!important}}"
+                    for v, _ in KPIS)
+    st.markdown(f'<style>{cores}</style><p class="kpi-tit">Visão geral · toque num quadro para ver as clientes</p>',
+                unsafe_allow_html=True)
+    for linha in (KPIS[:5], KPIS[5:]):
+        cols = st.columns(len(linha))
+        for col, (valor, rotulo) in zip(cols, linha):
+            n = sum(1 for c in base if passa_status(c, valor))
+            i = OPC_STATUS.index(valor)
+            col.button(f"{n}\n\n{rotulo}", key=f"kpi_{i}", use_container_width=True,
+                       type="primary" if valor == atual else "secondary",
+                       on_click=_escolher_status, args=(valor,))
+    st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
 
 
 def cartoes_followup(clientes, gestora, agrupar=True):
