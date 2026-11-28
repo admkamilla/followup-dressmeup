@@ -16,7 +16,7 @@ st.set_page_config(page_title="FOLLOW UP - DRESS ME UP GOIANIA", page_icon="📋
 STATUS = ["Por fazer", "Tentei, sem resposta", "Em conversa", "Reagendou", "Dados para contrato", "Fechou", "Não vai fechar"]
 MOTIVOS = ["", "Preço", "Alugou em outro lugar", "Não encontrou o vestido", "Desistiu do evento", "Comprou vestido", "Outro"]
 SITUACAO = {"Não compareceu": "Faltou", "Atendida, não fechou": "Veio e não fechou", "Em aberto": "Veio, conferir se fechou"}
-COR_SIT = {"Faltou": "#8a2f3b", "Veio e não fechou": "#9a5a2b", "Veio, conferir se fechou": "#2d3f5f"}
+COR_SIT = {"Faltou": "#7a1f2b", "Veio e não fechou": "#7a5a14", "Veio, conferir se fechou": "#526072"}
 EQUIPE_VENDAS = ["Natalya", "Raquel", "Jéssica Martins", "Andressa", "Kerem"]
 VENDEDORAS = ["Todas"] + EQUIPE_VENDAS + ["Sem vendedora"]
 POR_PAGINA = 25
@@ -33,18 +33,18 @@ header[data-testid="stHeader"]{background:transparent;height:0}
 @media print{body *{display:none!important}body:after{content:"Conteúdo interno da DRESS ME UP. Impressão não permitida.";display:block;padding:40px;font:16px sans-serif}}
 .stApp{-webkit-user-select:none;user-select:none}
 .stApp input,.stApp textarea{-webkit-user-select:text;user-select:text}
-.marca{position:fixed;right:14px;bottom:10px;font-size:.7rem;color:#6e2a4f;opacity:.55;pointer-events:none;z-index:999}
+.marca{position:fixed;right:14px;bottom:10px;font-size:.7rem;color:#373435;opacity:.55;pointer-events:none;z-index:999}
 .block-container{max-width:1400px;padding-top:1.8rem!important}
 h1{font-size:1.6rem!important;padding-bottom:0!important}
-.quem{font-size:1.15rem;color:#6e2a4f;margin:.35rem 0 .6rem;letter-spacing:.02em}
+.quem{font-size:1.15rem;color:#373435;margin:.35rem 0 .6rem;letter-spacing:.02em}
 .cab{display:flex;flex-wrap:wrap;align-items:center;gap:6px;line-height:1.6;padding-bottom:2px}
 .cli-nome{font-size:.98rem;font-weight:600;margin:0;text-transform:capitalize}
 .cli-meta{color:#6b6570;font-size:.8rem;margin:0;line-height:1.45}
 .cli-meta a{color:#1a7f4b;font-weight:600;text-decoration:none}
 .pill{display:inline-block;font-size:.68rem;font-weight:600;border-radius:999px;padding:1px 8px;color:#fff}
-.auto{color:#6e2a4f;font-size:.78rem;margin:0}
+.auto{color:#373435;font-size:.78rem;margin:0}
 .stamp{color:#8a8590;font-size:.7rem}
-.enviada{color:#2f5f9e;font-size:.78rem;font-weight:600}
+.enviada{color:#526072;font-size:.78rem;font-weight:600}
 /* cartão enxuto */
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"]{gap:.5rem}
 [data-testid="stForm"]{padding:0}
@@ -52,13 +52,13 @@ h1{font-size:1.6rem!important;padding-bottom:0!important}
 [data-testid="stForm"] [data-testid="stHorizontalBlock"]{flex-wrap:nowrap;gap:.5rem}
 [data-testid="stForm"] [data-testid="stColumn"],[data-testid="stForm"] [data-testid="column"]{min-width:0!important}
 [data-testid="stExpander"] details{border:none}
-[data-testid="stExpander"] summary{padding:.15rem 0;font-size:.8rem;color:#6e2a4f}
+[data-testid="stExpander"] summary{padding:.15rem 0;font-size:.8rem;color:#373435}
 [data-testid="stForm"] button{padding:.25rem .4rem;min-height:2.4rem;white-space:nowrap}
 [data-testid="stForm"] button p{font-size:.85rem}
 .dia{display:flex;justify-content:space-between;align-items:baseline;gap:8px;background:#2b2a2e;color:#fff;
  border-radius:10px;padding:10px 14px;margin:22px 0 8px}
 .dia b{font-size:1.05rem}.dia span{font-size:.8rem;opacity:.8}
-.dia.hoje{background:#6e2a4f}.dia.sem{background:#6b6570}
+.dia.hoje{background:#373435}.dia.sem{background:#6b6570}
 .cli-nome.nc{text-transform:none}
 table.resumo{width:100%;border-collapse:collapse;font-size:.82rem;background:#fff;border-radius:10px;overflow:hidden;margin:4px 0 10px}
 table.resumo th{background:#2b2a2e;color:#fff;font-weight:600;padding:6px 6px;text-align:center;font-size:.72rem}
@@ -67,24 +67,86 @@ table.resumo td{padding:6px;text-align:center;border-top:1px solid #ece9ee;font-
 table.resumo tr.total td{font-weight:700;background:#f6f2f5}
 table.resumo td.alerta{color:#8a2f3b;font-weight:700}
 .resumo-wrap{overflow-x:auto}
-.hora{font-weight:700;color:#6e2a4f;margin-right:2px}
-[data-testid="stRadio"] label p{font-size:.8rem}
+.hora{font-weight:700;color:#373435;margin-right:2px}
+[data-testid="stRadio"] label p{font-size:13px}
 [data-testid="stRadio"] [role="radiogroup"]{gap:.15rem .55rem!important}
 [data-testid="stRadio"] [role="radiogroup"] label{margin-right:0!important;padding-right:0!important}
 [data-testid="stPopover"] button{min-height:2.2rem;padding:.3rem .6rem}
 [data-testid="stPopover"] button p{font-size:.85rem}
-.nota{color:#6e2a4f;font-size:.8rem}
+.nota{color:#373435;font-size:.8rem}
 .kpi-tit{font-size:.85rem;color:#6b6570;margin:.3rem 0 .5rem;font-weight:600}
 [class*="st-key-kpi_"] button{min-height:84px;border-radius:12px;background:#fff;border:1px solid #e3dee6;border-top-width:5px;flex-direction:column;align-items:flex-start;padding:.5rem .8rem}
 [class*="st-key-kpi_"] button p{margin:0;text-align:left;font-size:.8rem;color:#4a4550;line-height:1.15}
 [class*="st-key-kpi_"] button p:first-child{font-size:1.75rem;font-weight:700;color:#2b2a2e;line-height:1.1}
-[class*="st-key-kpi_"] button[kind="primary"]{background:#f6eef3;box-shadow:0 0 0 2px #6e2a4f}
-[class*="st-key-kpi_"] button:hover{border-color:#6e2a4f}
+[class*="st-key-kpi_"] button[kind="primary"]{background:#f6eef3;box-shadow:0 0 0 2px #373435}
+[class*="st-key-kpi_"] button:hover{border-color:#373435}
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextInput"] [data-baseweb="input"]{background:#fff;border:1px solid #e3dee6;border-radius:8px}
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextInput"] input{font-size:.85rem}
 .falta{color:#8a2f3b;font-size:.78rem;font-weight:600}
 [data-testid="stLinkButton"] a{padding:.3rem .6rem;min-height:2.2rem}
 [data-testid="stLinkButton"] p{font-size:.85rem}
+
+/* ===== visual DRESS ME UP (mesmas fontes e cores do Dress Finance) ===== */
+:root{--tinta:#373435;--cinza:#8a8481;--cinza2:#6b6562;--linha:#e6e4e1;--fundo:#F4F5F7;--bege:#d9ccbd;--bege2:#f3eee8;
+ --oliva:#4b5626;--ocre:#7a5a14;--burgundy:#7a1f2b}
+.stApp,[data-testid="stAppViewContainer"]{background:var(--fundo)}
+html,body,.stApp,.stApp p,.stApp label,.stApp input,.stApp textarea,.stApp button,.stApp li,.stApp span,.stApp div{font-family:"Segoe UI",sans-serif}
+[data-testid="stIconMaterial"]{font-family:"Material Symbols Rounded"!important}
+.marca-topo{font-size:11px;letter-spacing:.24em;color:var(--cinza);font-weight:600}
+h1.titulo{font-family:"Segoe UI",sans-serif!important;font-size:24px!important;font-weight:700!important;color:var(--tinta);
+ margin:2px 0 0!important;padding:0!important;line-height:1.25!important}
+.quem{margin:10px 0 14px;display:flex;align-items:center;gap:8px}
+.quem-nome{background:var(--tinta);color:#fff;font-weight:600;font-size:12px;letter-spacing:.12em;padding:4px 12px;border-radius:999px}
+.quem-papel{color:var(--cinza);font-size:13px}
+.st-key-sair button{background:#fff;border:1px solid var(--linha);border-radius:8px;color:var(--cinza2)}
+.st-key-sair button:hover{border-color:var(--tinta);color:var(--tinta)}
+/* abas: duas opções em pílula, texto centralizado com folga */
+.st-key-aba [role="radiogroup"]{display:inline-flex!important;gap:4px!important;background:#fff;border:1px solid var(--linha);
+ border-radius:10px;padding:4px;width:auto}
+.st-key-aba [data-testid="stRadio"] [role="radiogroup"] label{display:flex!important;align-items:center;justify-content:center;border-radius:7px;
+ padding:7px 18px!important;margin:0!important;cursor:pointer;width:auto!important;min-width:max-content;white-space:nowrap}
+.st-key-aba [data-testid="stRadio"] [role="radiogroup"]{gap:4px!important}
+.st-key-aba label>div:first-child{display:none!important}
+.st-key-aba label input{position:absolute;opacity:0;width:0;height:0}
+.st-key-aba label>div:last-child{padding:0!important;margin:0!important}
+.st-key-aba label p{font-size:14px!important;font-weight:600;color:var(--cinza2);margin:0;text-align:center}
+.st-key-aba label:has(input:checked){background:var(--tinta)}
+.st-key-aba label:has(input:checked) p{color:#fff!important}
+/* títulos de seção */
+.sec{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--cinza2);font-weight:700;margin:18px 0 8px}
+.sec span{letter-spacing:0;text-transform:none;color:var(--cinza);font-weight:400;font-size:13px;margin-left:8px}
+/* quadros do painel (a faixa colorida da esquerda indica a etapa) */
+[class*="st-key-kpi_"] button{min-height:88px;border-radius:10px;background:#fff;border:1px solid var(--linha)!important;
+ border-left:4px solid #999!important;box-shadow:0 1px 1px rgba(55,52,53,.04);padding:12px 16px;transition:box-shadow .12s,transform .12s}
+[class*="st-key-kpi_"] button:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(55,52,53,.08)}
+[class*="st-key-kpi_"] button p{font-size:13px;color:var(--cinza2);font-weight:500}
+[class*="st-key-kpi_"] button p:first-child{font-size:28px;font-weight:700;color:var(--tinta);line-height:1.1;margin-bottom:2px}
+[class*="st-key-kpi_"] button[kind="primary"]{background:var(--bege2);box-shadow:0 0 0 2px var(--tinta)}
+/* painel de filtros */
+.st-key-filtros{background:#fff;border:1px solid var(--linha);border-radius:10px;padding:2px 18px 14px;margin-top:10px}
+.st-key-filtros .sec{margin-top:12px}
+.st-key-filtros label p{font-size:13px!important;color:var(--cinza2)}
+.st-key-filtros [data-baseweb="select"]>div,.st-key-filtros [data-baseweb="input"]{background:var(--fundo);border:1px solid var(--linha);border-radius:8px}
+/* dia: título com linha fina */
+.dia{background:transparent!important;color:var(--tinta);border-radius:0;padding:0 0 6px;margin:26px 0 10px;border-bottom:1px solid var(--linha)}
+.dia b{font-size:18px;font-weight:650;text-transform:capitalize}
+.dia span{color:var(--cinza);opacity:1;font-size:13px}
+.dia.ehoje b:after{content:"hoje";font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;
+ background:var(--bege);color:var(--tinta);border-radius:999px;padding:2px 9px;margin-left:10px;vertical-align:middle}
+/* cartões das clientes */
+[class*="st-key-card_"],[class*="st-key-conf_"]{background:#fff;border:1px solid var(--linha)!important;border-radius:10px;
+ box-shadow:0 1px 1px rgba(55,52,53,.04);padding:14px 18px}
+.cli-nome{font-size:15px;color:var(--tinta)}
+.cli-meta{color:var(--cinza);font-size:13px}
+.pill{font-size:11px;letter-spacing:.03em;padding:2px 9px}
+.hora{color:var(--tinta)}
+[data-testid="stRadio"] label:has(input:checked) p{color:var(--tinta);font-weight:700}
+[data-testid="stRadio"] label:has(input:checked)>div:first-child{background:var(--tinta)!important;border-color:var(--tinta)!important}
+[data-testid="stLinkButton"] a{border-radius:8px;border-color:var(--linha);background:#fff;color:var(--tinta)}
+[data-testid="stLinkButton"] a:hover{border-color:var(--oliva);color:var(--oliva)}
+[data-testid="stPopover"] button{border-radius:8px;border-color:var(--linha);background:#fff}
+[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextInput"] [data-baseweb="input"]{background:var(--fundo);border:1px solid var(--linha);border-radius:8px}
+.nota{color:var(--cinza2)}.marca{color:var(--cinza)}
 </style>
 """, unsafe_allow_html=True)
 
@@ -272,8 +334,11 @@ def painel_rede(nome):
 # ---------- tela principal ----------
 def tela_lista():
     topo, botao = st.columns([6, 1], vertical_alignment="center")
-    topo.title("Follow up · DRESS ME UP Goiânia")
-    if botao.button("Sair", icon="🚪", use_container_width=True):
+    titulo = "Follow-up" if st.session_state.get("gestora") or st.session_state.get("aba") == "Follow-up" \
+        else "Confirmar agendamentos"
+    topo.markdown(f'<div class="marca-topo">DRESS ME UP · GOIÂNIA</div><h1 class="titulo">{titulo}</h1>',
+                  unsafe_allow_html=True)
+    if botao.button("Sair", key="sair", use_container_width=True):
         sair()
     nome = st.session_state.get("nome_vendedora")
     if nome is None:
@@ -287,7 +352,8 @@ def tela_lista():
     gestora = st.session_state.get("gestora", False)
     if nome:
         st.markdown(f'<div class="marca">Uso interno DRESS ME UP · {nome} · {hoje_local():%d/%m/%Y}</div>', unsafe_allow_html=True)
-        st.markdown(f'<p class="quem">{"Gestora" if gestora else "Vendedora"}: <b>{nome.upper()}</b></p>',
+        st.markdown(f'<p class="quem"><span class="quem-nome">{nome.upper()}</span>'
+                    f'<span class="quem-papel">{"gestora" if gestora else "vendedora"}</span></p>',
                     unsafe_allow_html=True)
     if not gestora and bloqueio_fora_da_loja():
         return
@@ -297,9 +363,9 @@ def tela_lista():
         # gestoras acompanham só o follow-up (resumo por vendedora); a confirmação fica com as vendedoras
         tela_followup(nome, gestora)
         return
-    aba = st.radio("Tela", ["📲 Confirmar agendamentos", "📋 Follow-up"], horizontal=True,
+    aba = st.radio("Tela", ["Confirmar agendamentos", "Follow-up"], horizontal=True,
                    label_visibility="collapsed", key="aba")
-    if aba.startswith("📲"):
+    if aba.startswith("Confirmar"):
         tela_confirmar(nome, gestora)
     else:
         tela_followup(nome, gestora)
@@ -338,7 +404,9 @@ def tela_followup(nome, gestora):
         resumo_semana(lista, semana_ini)
 
     PERIODOS = ["Últimos 7 dias", "Fila antiga (mais de 7 dias)", "Todos"]
-    cols_f = st.columns(4)
+    filtros = st.container(key="filtros")
+    filtros.markdown('<p class="sec">Filtros</p>', unsafe_allow_html=True)
+    cols_f = filtros.columns(4)
     filtro_per = cols_f[0].selectbox("Período na agenda", PERIODOS, index=0 if gestora else 2)
     if "f_status" not in st.session_state:
         st.session_state.f_status = "Por fazer"
@@ -353,7 +421,7 @@ def tela_followup(nome, gestora):
     ocasioes = sorted({_ocasiao(c) for c in lista if _ocasiao(c)})
     meses = sorted({c["evento"][:7] for c in lista if c.get("evento")})
     OPC_EVENTO = ["Todas", "Próximos 15 dias", "Próximos 30 dias", "Próximos 60 dias"] + [_nome_mes(m) for m in meses]
-    cols_g = st.columns([2, 2, 2, 3] if gestora else [2, 2, 3])
+    cols_g = filtros.columns([2, 2, 2, 3] if gestora else [2, 2, 3])
     filtro_oc = cols_g[0].selectbox("Ocasião", ["Todas"] + ocasioes)
     filtro_ev = cols_g[1].selectbox("Data do evento", OPC_EVENTO)
     if gestora:
@@ -394,8 +462,8 @@ def tela_followup(nome, gestora):
 
 
 LIMITE_TABELA = 300
-COR_FU = {"Por fazer": "#8a8590", "Tentei, sem resposta": "#b5761b", "Em conversa": "#2f5f9e", "Reagendou": "#5b4a8a",
-          "Dados para contrato": "#0f7a76", "Fechou": "#1a7f4b", "Não vai fechar": "#8a2f3b"}
+COR_FU = {"Por fazer": "#8a8481", "Tentei, sem resposta": "#7a5a14", "Em conversa": "#526072", "Reagendou": "#6b5a7a",
+          "Dados para contrato": "#3f6b66", "Fechou": "#4b5626", "Não vai fechar": "#7a1f2b"}
 SIT_CURTA = {"Veio e não fechou": "Não fechou", "Veio, conferir se fechou": "Conferir"}
 
 
@@ -418,7 +486,7 @@ def dia_curto(agendado):
     if not agendado:
         return "Sem data na agenda", "sem"
     d = date.fromisoformat(agendado)
-    return f"{SEMANA[d.weekday()]}, {d:%d/%m}", ("hoje" if d == hoje_local() else "")
+    return f"{SEMANA[d.weekday()]}, {d:%d/%m}", ("hoje ehoje" if d == hoje_local() else "")
 
 
 OPC_STATUS = ["Todos"] + STATUS + ["Retorno hoje", "Retorno vencido"]
@@ -426,7 +494,7 @@ KPIS = [("Por fazer", "Por fazer"), ("Tentei, sem resposta", "Tentei"), ("Em con
         ("Reagendou", "Reagendou"), ("Dados para contrato", "Dados p/ contrato"), ("Fechou", "Fechou"),
         ("Não vai fechar", "Não vai fechar"), ("Retorno hoje", "Retorno hoje"), ("Retorno vencido", "Retorno vencido"),
         ("Todos", "Todas")]
-COR_KPI = {**COR_FU, "Retorno hoje": "#c26a12", "Retorno vencido": "#b3261e", "Todos": "#2b2a2e"}
+COR_KPI = {**COR_FU, "Retorno hoje": "#a8742a", "Retorno vencido": "#a3352a", "Todos": "#373435"}
 
 
 def passa_status(c, filtro):
@@ -446,9 +514,9 @@ def _escolher_status(valor):
 
 def painel_numeros(base, atual):
     """Cartões grandes com o total de cada etapa; tocar num cartão mostra só aquelas clientes."""
-    cores = "".join(f".st-key-kpi_{OPC_STATUS.index(v)} button{{border-top-color:{COR_KPI.get(v, '#999')}!important}}"
+    cores = "".join(f".st-key-kpi_{OPC_STATUS.index(v)} button{{border-left-color:{COR_KPI.get(v, '#999')}!important}}"
                     for v, _ in KPIS)
-    st.markdown(f'<style>{cores}</style><p class="kpi-tit">Visão geral · toque num quadro para ver as clientes</p>',
+    st.markdown(f'<style>{cores}</style><p class="sec">Visão geral <span>toque num quadro para ver as clientes</span></p>',
                 unsafe_allow_html=True)
     for linha in (KPIS[:5], KPIS[5:]):
         cols = st.columns(len(linha))
@@ -488,7 +556,7 @@ def cartao_slim(c, gestora):
     f, cid = c["_f"], c["id"]
     stt = c["_status"] if c["_status"] in STATUS else "Por fazer"
     sit = c["_sit"]
-    with st.container(border=True):
+    with st.container(key=f"card_{cid}"):
         partes = [f"agenda {ddmm(c.get('ultimo'))[:5]}" if c.get("ultimo") else "", _ocasiao(c)]
         if c.get("evento"):
             dias = (date.fromisoformat(c["evento"]) - date.today()).days
@@ -496,7 +564,7 @@ def cartao_slim(c, gestora):
         if c.get("vend_atend"):
             partes.append(f"<b>{c['vend_atend'].split()[0]}</b>")
         # linha de cima: cliente à esquerda, bolinhas de status à direita
-        esq, dir_ = st.columns([3.3, 6.7], vertical_alignment="center")
+        esq, dir_ = st.columns([2.7, 7.3], vertical_alignment="center")
         esq.markdown(f'<div class="cab"><span class="cli-nome">{c.get("nome") or ""}</span>'
                      f'<span class="pill" style="background:{COR_SIT.get(sit, "#555")}">{SIT_CURTA.get(sit, sit)}</span></div>'
                      f'<div class="cli-meta">{" · ".join(p for p in partes if p)}</div>', unsafe_allow_html=True)
@@ -677,7 +745,7 @@ def cartao(c):
         # linha 1: nome + situação
         cab = (f'<div class="cab"><span class="cli-nome">{c.get("nome") or ""}</span>'
                f'<span class="pill" style="background:{cor}">{c["_sit"]}</span>'
-               + ('<span class="pill" style="background:#6e2a4f">evento próximo</span>' if dias is not None and dias <= 21 else "")
+               + ('<span class="pill" style="background:#373435">evento próximo</span>' if dias is not None and dias <= 21 else "")
                + '</div>')
         # linha 2: dados + WhatsApp
         partes = [c.get("ocasiao") or c.get("grupo") or "", f"evento {ddmm(c.get('evento'))}{prazo}"]
@@ -737,7 +805,7 @@ SALTO = {"Primeiro": "Traga o salto que você vai usar na festa, tá? Ele muda o
          "Troca": "Traga o salto que você vai usar na festa, tá? Assim a gente já confere o comprimento do novo vestido."}
 TIPO_ROTULO = {"Primeiro": "1º atendimento", "Retorno": "Prova/retorno", "Troca": "Troca"}
 CONF = ["A confirmar", "Mensagem enviada", "Confirmou", "Vai remarcar", "Não respondeu"]
-COR_CONF = {"A confirmar": "#8a8590", "Mensagem enviada": "#2f5f9e", "Confirmou": "#1a7f4b", "Vai remarcar": "#b5761b", "Não respondeu": "#8a2f3b"}
+COR_CONF = {"A confirmar": "#8a8481", "Mensagem enviada": "#526072", "Confirmou": "#4b5626", "Vai remarcar": "#7a5a14", "Não respondeu": "#7a1f2b"}
 NAO_E_NOME = {"filha", "mae", "mãe", "irma", "irmã", "amiga", "prima", "sobrinha", "cliente"}
 
 
@@ -854,7 +922,7 @@ def tela_confirmar(nome, gestora):
     for a in lista:
         stt = status(a)
         c = confs.get(a["id"])
-        with st.container(border=True):
+        with st.container(key=f"conf_{a['id']}"):
             partes = [TIPO_ROTULO.get(a.get("tipo"), "")]
             if a.get("ocasiao"): partes.append(a["ocasiao"])
             if a.get("evento"): partes.append(f"evento {ddmm(a['evento'])}")
