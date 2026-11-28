@@ -406,17 +406,17 @@ def tela_followup(nome, gestora):
     PERIODOS = ["Últimos 7 dias", "Fila antiga (mais de 7 dias)", "Todos"]
     filtros = st.container(key="filtros")
     filtros.markdown('<p class="sec">Filtros</p>', unsafe_allow_html=True)
-    cols_f = filtros.columns(4)
+    cols_f = filtros.columns(3)
     filtro_per = cols_f[0].selectbox("Período na agenda", PERIODOS, index=0 if gestora else 2)
     if "f_status" not in st.session_state:
         st.session_state.f_status = "Por fazer"
-    filtro_status = cols_f[1].selectbox("Follow-up", OPC_STATUS, key="f_status")
-    filtro_sit = cols_f[2].selectbox("Situação", ["Todas"] + list(SITUACAO.values()))
+    filtro_status = st.session_state.f_status  # escolhido tocando nos quadros do painel
+    filtro_sit = cols_f[1].selectbox("Situação", ["Todas"] + list(SITUACAO.values()))
     if gestora:
-        filtro_vend = cols_f[3].selectbox("Vendedora", ["Todas"] + EQUIPE_VENDAS)
+        filtro_vend = cols_f[2].selectbox("Vendedora", ["Todas"] + EQUIPE_VENDAS)
     else:
         filtro_vend = "Todas"
-        ordem = cols_f[3].selectbox("Ordenar por", ORDENS)
+        ordem = cols_f[2].selectbox("Ordenar por", ORDENS)
 
     ocasioes = sorted({_ocasiao(c) for c in lista if _ocasiao(c)})
     meses = sorted({c["evento"][:7] for c in lista if c.get("evento")})
@@ -457,7 +457,8 @@ def tela_followup(nome, gestora):
         filtrada = sorted(filter(passa, lista), key=lambda c: (c.get("evento") or "9999", c.get("nome") or ""))
     else:
         filtrada = sorted(filter(passa, lista), key=lambda c: (c.get("ultimo") or "", c.get("nome") or ""), reverse=True)
-    st.caption(f"{len(filtrada)} clientes nesta lista · marcou, salvou: vale na hora para toda a equipe.")
+    rot = dict(KPIS).get(filtro_status, filtro_status)
+    st.caption(f"{len(filtrada)} clientes em **{rot}** · marcou, salvou: vale na hora para toda a equipe.")
     cartoes_followup(filtrada, gestora, agrupar=(ordem == ORDENS[0]))
 
 
