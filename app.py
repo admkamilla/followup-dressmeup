@@ -332,14 +332,10 @@ def painel_rede(nome):
 
 
 # ---------- tela principal ----------
+PAPEL = {"tamires": "supervisora", "kamilla": "diretora"}
+
+
 def tela_lista():
-    topo, botao = st.columns([6, 1], vertical_alignment="center")
-    titulo = "Follow-up" if st.session_state.get("gestora") or st.session_state.get("aba") == "Follow-up" \
-        else "Confirmar agendamentos"
-    topo.markdown(f'<div class="marca-topo">DRESS ME UP · GOIÂNIA</div><h1 class="titulo">{titulo}</h1>',
-                  unsafe_allow_html=True)
-    if botao.button("Sair", key="sair", use_container_width=True):
-        sair()
     nome = st.session_state.get("nome_vendedora")
     if nome is None:
         try:
@@ -349,11 +345,18 @@ def tela_lista():
         except Exception:
             nome = ""
         st.session_state.nome_vendedora = nome
+    topo, botao = st.columns([6, 1], vertical_alignment="center")
+    titulo = "Confirmar agendamentos" if not st.session_state.get("gestora") \
+        and st.session_state.get("aba") == "Confirmar agendamentos" else "Follow-up"
+    topo.markdown(f'<div class="marca-topo">DRESS ME UP · GOIÂNIA</div><h1 class="titulo">{titulo}</h1>',
+                  unsafe_allow_html=True)
+    if botao.button("Sair", key="sair", use_container_width=True):
+        sair()
     gestora = st.session_state.get("gestora", False)
     if nome:
         st.markdown(f'<div class="marca">Uso interno DRESS ME UP · {nome} · {hoje_local():%d/%m/%Y}</div>', unsafe_allow_html=True)
         st.markdown(f'<p class="quem"><span class="quem-nome">{nome.upper()}</span>'
-                    f'<span class="quem-papel">{"gestora" if gestora else "vendedora"}</span></p>',
+                    f'<span class="quem-papel">{PAPEL.get(nome.lower(), "gestora" if gestora else "vendedora")}</span></p>',
                     unsafe_allow_html=True)
     if not gestora and bloqueio_fora_da_loja():
         return
@@ -363,7 +366,7 @@ def tela_lista():
         # gestoras acompanham só o follow-up (resumo por vendedora); a confirmação fica com as vendedoras
         tela_followup(nome, gestora)
         return
-    aba = st.radio("Tela", ["Confirmar agendamentos", "Follow-up"], horizontal=True,
+    aba = st.radio("Tela", ["Follow-up", "Confirmar agendamentos"], horizontal=True,
                    label_visibility="collapsed", key="aba")
     if aba.startswith("Confirmar"):
         tela_confirmar(nome, gestora)
